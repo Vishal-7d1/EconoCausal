@@ -1,0 +1,2 @@
+*.csv
+!01_Dataset_Analysis/data/synthetic/*.csv
