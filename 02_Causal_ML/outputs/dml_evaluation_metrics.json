@@ -1,0 +1,76 @@
+{
+  "arm_10": {
+    "arm_name": "\u20b910 Discount",
+    "true_ate_pct": 14.52,
+    "estimated_ate_pct": 14.36,
+    "ate_abs_error_pct": 0.166,
+    "pehe": 0.0428,
+    "pehe_pct": 4.28,
+    "mae": 0.03376,
+    "mae_pct": 3.376,
+    "pearson_r": 0.3772,
+    "spearman_rho": 0.3797
+  },
+  "arm_20": {
+    "arm_name": "\u20b920 Discount",
+    "true_ate_pct": 22.94,
+    "estimated_ate_pct": 21.23,
+    "ate_abs_error_pct": 1.712,
+    "pehe": 0.0403,
+    "pehe_pct": 4.03,
+    "mae": 0.03219,
+    "mae_pct": 3.219,
+    "pearson_r": 0.6654,
+    "spearman_rho": 0.6457
+  },
+  "subgroups": [
+    {
+      "Segment Category": "Income Tier",
+      "Segment": "Low (Q1)",
+      "True ATE \u20b910 (%)": 16.65,
+      "DML ATE \u20b910 (%)": 14.46,
+      "True ATE \u20b920 (%)": 26.36,
+      "DML ATE \u20b920 (%)": 22.74
+    },
+    {
+      "Segment Category": "Income Tier",
+      "Segment": "Med-Low (Q2)",
+      "True ATE \u20b910 (%)": 14.78,
+      "DML ATE \u20b910 (%)": 14.35,
+      "True ATE \u20b920 (%)": 23.38,
+      "DML ATE \u20b920 (%)": 21.98
+    },
+    {
+      "Segment Category": "Income Tier",
+      "Segment": "Med-High (Q3)",
+      "True ATE \u20b910 (%)": 13.86,
+      "DML ATE \u20b910 (%)": 14.42,
+      "True ATE \u20b920 (%)": 21.86,
+      "DML ATE \u20b920 (%)": 20.97
+    },
+    {
+      "Segment Category": "Income Tier",
+      "Segment": "High (Q4)",
+      "True ATE \u20b910 (%)": 12.79,
+      "DML ATE \u20b910 (%)": 14.2,
+      "True ATE \u20b920 (%)": 20.15,
+      "DML ATE \u20b920 (%)": 19.21
+    },
+    {
+      "Segment Category": "Loyalty Status",
+      "Segment": "Non-Loyal",
+      "True ATE \u20b910 (%)": 15.3,
+      "DML ATE \u20b910 (%)": 14.57,
+      "True ATE \u20b920 (%)": 24.27,
+      "DML ATE \u20b920 (%)": 23.17
+    },
+    {
+      "Segment Category": "Loyalty Status",
+      "Segment": "Loyalty Member",
+      "True ATE \u20b910 (%)": 12.02,
+      "DML ATE \u20b910 (%)": 13.67,
+      "True ATE \u20b920 (%)": 18.62,
+      "DML ATE \u20b920 (%)": 14.93
+    }
+  ]
+}
