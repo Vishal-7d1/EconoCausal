@@ -10,6 +10,7 @@ export default function PlotlyChart({
   config = {},
   style = { width: '100%', height: '360px' },
   className = '',
+  theme = 'dark',
 }) {
   const containerRef = useRef(null);
   const isMountedRef = useRef(false);
@@ -17,13 +18,14 @@ export default function PlotlyChart({
   useEffect(() => {
     isMountedRef.current = true;
 
+    const isLight = theme === 'light';
     const mergedLayout = {
       autosize: true,
       paper_bgcolor: 'transparent',
       plot_bgcolor: 'transparent',
       font: {
         family: 'Inter, system-ui, sans-serif',
-        color: '#94A3B8',
+        color: isLight ? '#475569' : '#94A3B8',
         size: 12,
       },
       margin: { l: 50, r: 30, t: 40, b: 50 },
@@ -66,7 +68,7 @@ export default function PlotlyChart({
     return () => {
       window.removeEventListener('resize', handleResize);
     };
-  }, [data, layout, config]);
+  }, [data, layout, config, theme]);
 
   useEffect(() => {
     const container = containerRef.current;
