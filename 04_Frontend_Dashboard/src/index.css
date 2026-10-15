@@ -11,6 +11,12 @@
   --bg-glass: rgba(255, 255, 255, 0.03);
   --bg-glass-active: rgba(255, 255, 255, 0.08);
 
+  --bg-input: rgba(17, 24, 39, 0.85);
+  --bg-table-header: rgba(17, 24, 39, 0.95);
+  --bg-table-stripe: rgba(255, 255, 255, 0.015);
+  --bg-modal: #111827;
+  --bg-modal-backdrop: rgba(0, 0, 0, 0.75);
+
   --border-subtle: rgba(255, 255, 255, 0.08);
   --border-focus: rgba(99, 102, 241, 0.5);
   --border-accent: rgba(16, 185, 129, 0.3);
@@ -41,6 +47,7 @@
 
   /* Shadows & Glassmorphism */
   --shadow-card: 0 4px 20px -2px rgba(0, 0, 0, 0.5), 0 2px 6px -1px rgba(0, 0, 0, 0.4);
+  --shadow-dropdown: 0 10px 25px -5px rgba(0, 0, 0, 0.5), 0 8px 10px -6px rgba(0, 0, 0, 0.4);
   --shadow-glow-emerald: 0 0 24px -4px rgba(16, 185, 129, 0.3);
   --shadow-glow-violet: 0 0 24px -4px rgba(139, 92, 246, 0.3);
   --shadow-glow-cyan: 0 0 24px -4px rgba(6, 182, 212, 0.3);
@@ -58,6 +65,51 @@
   --transition-slow: 400ms cubic-bezier(0.4, 0, 0.2, 1);
 }
 
+/* Light Mode: Elegant Off-White, Crisp Slate Typography, Refined Accents */
+:root[data-theme="light"] {
+  --bg-main: #F8FAFC;
+  --bg-surface: #FFFFFF;
+  --bg-card: #FFFFFF;
+  --bg-card-hover: #F8FAFC;
+  --bg-glass: rgba(15, 23, 42, 0.03);
+  --bg-glass-active: rgba(15, 23, 42, 0.06);
+  --bg-input: #FFFFFF;
+  --bg-table-header: #F1F5F9;
+  --bg-table-stripe: rgba(248, 250, 252, 0.7);
+  --bg-modal: #FFFFFF;
+  --bg-modal-backdrop: rgba(15, 23, 42, 0.6);
+
+  --border-subtle: #E2E8F0;
+  --border-focus: rgba(79, 70, 229, 0.6);
+  --border-accent: rgba(5, 150, 105, 0.4);
+
+  /* Primary Typography Colors for Light Mode */
+  --text-main: #0F172A;
+  --text-muted: #475569;
+  --text-dim: #64748B;
+  --text-inverse: #FFFFFF;
+
+  /* Refined Semantic Accents for Light Mode */
+  --color-emerald: #059669;
+  --color-emerald-glow: rgba(5, 150, 105, 0.12);
+  --color-cyan: #0284C7;
+  --color-cyan-glow: rgba(2, 132, 199, 0.12);
+  --color-violet: #7C3AED;
+  --color-violet-glow: rgba(124, 58, 237, 0.12);
+  --color-amber: #D97706;
+  --color-amber-glow: rgba(217, 119, 6, 0.12);
+  --color-rose: #E11D48;
+  --color-rose-glow: rgba(225, 29, 72, 0.12);
+  --color-indigo: #4F46E5;
+
+  /* Shadows for Light Mode */
+  --shadow-card: 0 4px 16px -2px rgba(15, 23, 42, 0.06), 0 2px 4px -1px rgba(15, 23, 42, 0.03);
+  --shadow-dropdown: 0 10px 25px -5px rgba(15, 23, 42, 0.08), 0 8px 10px -6px rgba(15, 23, 42, 0.04);
+  --shadow-glow-emerald: 0 0 20px -4px rgba(5, 150, 105, 0.2);
+  --shadow-glow-violet: 0 0 20px -4px rgba(124, 58, 237, 0.2);
+  --shadow-glow-cyan: 0 0 20px -4px rgba(2, 132, 199, 0.2);
+}
+
 /* Base Reset */
 *, *::before, *::after {
   box-sizing: border-box;
@@ -73,6 +125,12 @@ html {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   scroll-behavior: smooth;
+  color-scheme: dark;
+  transition: background-color var(--transition-normal), color var(--transition-normal);
+}
+
+html[data-theme="light"] {
+  color-scheme: light;
 }
 
 body {
@@ -83,6 +141,14 @@ body {
               radial-gradient(circle at 50% 80%, rgba(6, 182, 212, 0.05) 0%, transparent 50%),
               var(--bg-main);
   background-attachment: fixed;
+  transition: background var(--transition-normal), color var(--transition-normal);
+}
+
+:root[data-theme="light"] body {
+  background: radial-gradient(circle at 15% 10%, rgba(99, 102, 241, 0.035) 0%, transparent 40%),
+              radial-gradient(circle at 85% 20%, rgba(5, 150, 105, 0.03) 0%, transparent 45%),
+              radial-gradient(circle at 50% 80%, rgba(2, 132, 199, 0.03) 0%, transparent 50%),
+              var(--bg-main);
 }
 
 h1, h2, h3, h4, h5, h6 {
