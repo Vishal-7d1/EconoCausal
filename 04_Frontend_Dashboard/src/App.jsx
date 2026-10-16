@@ -118,7 +118,7 @@ export default function App() {
 
   const [chartData, setChartData] = useState(null);
 
-  const [methodologyData, setMethodologyData] = useState(null);
+  const [_methodologyData, setMethodologyData] = useState(null);
 
   const [recommendations, setRecommendations] = useState([]);
 
@@ -911,31 +911,52 @@ export default function App() {
   }
 
   if (error) {
+    const isOffline =
+      error.includes('502') ||
+      error.includes('503') ||
+      error.includes('ECONNREFUSED') ||
+      error.includes('Failed to fetch') ||
+      error.includes('offline');
 
     return (
-
       <div className="state-container">
-
-        <div className="error-card">
-
-          <div style={{ fontSize: '2rem' }}>⚠️</div>
-
-          <h3>Dashboard Connection Error</h3>
-
-          <p>{error}</p>
-
-          <button className="btn btn-primary" onClick={fetchDashboardData}>
-
-            Retry Loading Dashboard
-
+        <div className="error-card" style={{ maxWidth: '580px', padding: '2rem' }}>
+          <div style={{ fontSize: '2.5rem', marginBottom: '0.5rem' }}>🔌</div>
+          <h3>{isOffline ? 'Backend Service Offline' : 'Dashboard Connection Error'}</h3>
+          <p style={{ color: 'var(--text-secondary, #94a3b8)', lineHeight: 1.6, marginBottom: '1.25rem' }}>
+            {isOffline
+              ? 'The FastAPI backend is not running on http://127.0.0.1:8000. Start it in a terminal to load dashboard metrics and recommendations.'
+              : error}
+          </p>
+          {isOffline && (
+            <div
+              style={{
+                backgroundColor: 'rgba(15, 23, 42, 0.8)',
+                border: '1px solid rgba(255, 255, 255, 0.1)',
+                borderRadius: '8px',
+                padding: '1rem',
+                marginBottom: '1.5rem',
+                textAlign: 'left',
+                fontFamily: 'JetBrains Mono, monospace',
+                fontSize: '0.85rem',
+              }}
+            >
+              <div style={{ color: '#94a3b8', marginBottom: '0.4rem', fontSize: '0.75rem' }}>
+                Run this command in 04_Frontend_Dashboard:
+              </div>
+              <code style={{ color: '#38bdf8', fontWeight: 600 }}>npm run backend</code>
+              <div style={{ color: '#94a3b8', margin: '0.5rem 0 0.4rem', fontSize: '0.75rem' }}>
+                Or from project root:
+              </div>
+              <code style={{ color: '#4ade80', fontWeight: 600 }}>python 04_Frontend_Dashboard/backend/app.py</code>
+            </div>
+          )}
+          <button className="btn btn-primary" onClick={fetchDashboardData} style={{ width: '100%' }}>
+            🔄 Retry Connecting to Backend
           </button>
-
         </div>
-
       </div>
-
     );
-
   }
 
   return (

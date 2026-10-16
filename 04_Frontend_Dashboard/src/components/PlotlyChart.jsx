@@ -69,10 +69,11 @@ export default function PlotlyChart({
   }, [data, layout, config]);
 
   useEffect(() => {
+    const container = containerRef.current;
     return () => {
       isMountedRef.current = false;
-      if (containerRef.current && window.Plotly) {
-        window.Plotly.purge(containerRef.current);
+      if (container && window.Plotly) {
+        window.Plotly.purge(container);
       }
     };
   }, []);
