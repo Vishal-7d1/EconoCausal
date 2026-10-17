@@ -1,3 +1,4 @@
+
 # EconoCausal: Dynamic Pricing via Double Machine Learning
 
 AI-powered causal inference and dynamic pricing platform using Double Machine Learning (DML) to estimate individual treatment effects (heterogeneous treatment effects) of promotional discounts and optimize discount allocation under marketing budget constraints.
