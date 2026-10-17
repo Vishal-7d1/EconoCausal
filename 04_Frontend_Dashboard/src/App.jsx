@@ -200,6 +200,49 @@ export default function App() {
 
   const [simulationResult, setSimulationResult] = useState(null);
 
+  // Theme State: 'dark' (default) | 'light' with localStorage persistence
+  const [theme, setTheme] = useState(() => {
+    try {
+      const saved = localStorage.getItem('econocausal_theme');
+      if (saved === 'light' || saved === 'dark') return saved;
+      if (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches) {
+        return 'light';
+      }
+    } catch {
+      // fallback on storage restriction
+    }
+    return 'dark';
+  });
+
+  useEffect(() => {
+    try {
+      document.documentElement.setAttribute('data-theme', theme);
+      localStorage.setItem('econocausal_theme', theme);
+    } catch {
+      // ignore
+    }
+  }, [theme]);
+
+  const toggleTheme = useCallback(() => {
+    setTheme((prev) => (prev === 'light' ? 'dark' : 'light'));
+  }, []);
+
+  // Theme-aware tokens for Plotly interactive charts
+  const chartTheme = useMemo(() => {
+    const isLight = theme === 'light';
+    return {
+      isLight,
+      textColor: isLight ? '#0F172A' : '#F8FAFC',
+      mutedColor: isLight ? '#475569' : '#94A3B8',
+      gridColor: isLight ? 'rgba(15, 23, 42, 0.08)' : 'rgba(255, 255, 255, 0.08)',
+      tickColor: isLight ? '#475569' : '#CBD5E1',
+      lineBorderColor: isLight ? 'rgba(15, 23, 42, 0.15)' : 'rgba(255, 255, 255, 0.2)',
+      plotBg: 'transparent',
+      paperBg: 'transparent',
+      thresholdShade: isLight ? 'rgba(5, 150, 105, 0.12)' : 'rgba(16, 185, 129, 0.08)',
+    };
+  }, [theme]);
+
   const activeDataset = activeDatasetType === 'pricing' ? pricingDataset : groundTruthDataset;
 
   const datasetColumnStats = useMemo(
@@ -698,7 +741,7 @@ export default function App() {
 
       layout: {
 
-        title: { text: '<b>Customer Offer Allocation Share</b>', font: { size: 14, color: '#F8FAFC' } },
+        title: { text: '<b>Customer Offer Allocation Share</b>', font: { size: 14, color: chartTheme.textColor } },
 
         showlegend: false,
 
@@ -706,11 +749,15 @@ export default function App() {
 
         margin: { t: 40, b: 20, l: 20, r: 20 },
 
+        paper_bgcolor: chartTheme.paperBg,
+
+        plot_bgcolor: chartTheme.plotBg,
+
       },
 
     };
 
-  }, [chartData]);
+  }, [chartData, chartTheme]);
 
   const policyComparisonChart = useMemo(() => {
 
@@ -764,7 +811,7 @@ export default function App() {
 
             color: ['#10B981', '#F59E0B', '#3B82F6', '#EC4899'],
 
-            line: { color: 'rgba(255, 255, 255, 0.2)', width: 1 },
+            line: { color: chartTheme.lineBorderColor, width: 1 },
 
           },
 
@@ -776,21 +823,29 @@ export default function App() {
 
       layout: {
 
-        title: { text: `<b>Policy Benchmarks: ${yTitle}</b>`, font: { size: 14, color: '#F8FAFC' } },
+        title: { text: `<b>Policy Benchmarks: ${yTitle}</b>`, font: { size: 14, color: chartTheme.textColor } },
 
-        yaxis: { title: yTitle, gridcolor: 'rgba(255, 255, 255, 0.08)' },
+        yaxis: {
+          title: { text: yTitle, font: { color: chartTheme.mutedColor, size: 12 } },
+          gridcolor: chartTheme.gridColor,
+          tickfont: { color: chartTheme.tickColor },
+        },
 
-        xaxis: { tickfont: { size: 11, color: '#CBD5E1' } },
+        xaxis: { tickfont: { size: 11, color: chartTheme.tickColor } },
 
         height: 330,
 
         margin: { t: 40, b: 60, l: 60, r: 20 },
 
+        paper_bgcolor: chartTheme.paperBg,
+
+        plot_bgcolor: chartTheme.plotBg,
+
       },
 
     };
 
-  }, [chartData, policyMetric]);
+  }, [chartData, policyMetric, chartTheme]);
 
   const incomeSegmentChart = useMemo(() => {
 
@@ -840,21 +895,31 @@ export default function App() {
 
         barmode: 'group',
 
-        title: { text: '<b>Targeting & Price Sensitivity by Income Tier</b>', font: { size: 14, color: '#F8FAFC' } },
+        title: { text: '<b>Targeting & Price Sensitivity by Income Tier</b>', font: { size: 14, color: chartTheme.textColor } },
 
-        yaxis: { title: 'Percentage (%)', gridcolor: 'rgba(255, 255, 255, 0.08)' },
+        yaxis: {
+          title: { text: 'Percentage (%)', font: { color: chartTheme.mutedColor, size: 12 } },
+          gridcolor: chartTheme.gridColor,
+          tickfont: { color: chartTheme.tickColor },
+        },
 
-        legend: { orientation: 'h', y: -0.2, x: 0.1 },
+        xaxis: { tickfont: { color: chartTheme.tickColor } },
+
+        legend: { orientation: 'h', y: -0.2, x: 0.1, font: { color: chartTheme.textColor } },
 
         height: 330,
 
         margin: { t: 40, b: 60, l: 50, r: 20 },
 
+        paper_bgcolor: chartTheme.paperBg,
+
+        plot_bgcolor: chartTheme.plotBg,
+
       },
 
     };
 
-  }, [chartData]);
+  }, [chartData, chartTheme]);
 
   const loyaltySegmentChart = useMemo(() => {
 
@@ -884,19 +949,29 @@ export default function App() {
 
       layout: {
 
-        title: { text: '<b>Incremental Profit by Loyalty Status</b>', font: { size: 14, color: '#F8FAFC' } },
+        title: { text: '<b>Incremental Profit by Loyalty Status</b>', font: { size: 14, color: chartTheme.textColor } },
 
-        yaxis: { title: 'Incremental Profit (₹)', gridcolor: 'rgba(255, 255, 255, 0.08)' },
+        yaxis: {
+          title: { text: 'Incremental Profit (₹)', font: { color: chartTheme.mutedColor, size: 12 } },
+          gridcolor: chartTheme.gridColor,
+          tickfont: { color: chartTheme.tickColor },
+        },
+
+        xaxis: { tickfont: { color: chartTheme.tickColor } },
 
         height: 330,
 
         margin: { t: 40, b: 40, l: 65, r: 20 },
 
+        paper_bgcolor: chartTheme.paperBg,
+
+        plot_bgcolor: chartTheme.plotBg,
+
       },
 
     };
 
-  }, [chartData]);
+  }, [chartData, chartTheme]);
 
   const lovePlotChart = useMemo(() => {
     if (!validationData?.love_plot_data) return null;
@@ -923,7 +998,7 @@ export default function App() {
         },
       ],
       layout: {
-        title: { text: '<b>Love Plot: Covariate Balance Diagnostic (|SMD|)</b>', font: { size: 14, color: '#F8FAFC' } },
+        title: { text: '<b>Love Plot: Covariate Balance Diagnostic (|SMD|)</b>', font: { size: 14, color: chartTheme.textColor } },
         shapes: [
           {
             type: 'line',
@@ -939,7 +1014,7 @@ export default function App() {
             x1: 0.10,
             y0: -0.5,
             y1: lp.covariates.length - 0.5,
-            fillcolor: 'rgba(16, 185, 129, 0.08)',
+            fillcolor: chartTheme.thresholdShade,
             line: { width: 0 },
             layer: 'below',
           },
@@ -959,19 +1034,20 @@ export default function App() {
           },
         ],
         xaxis: {
-          title: 'Absolute Standardized Mean Difference (|SMD|)',
-          gridcolor: 'rgba(255, 255, 255, 0.08)',
+          title: { text: 'Absolute Standardized Mean Difference (|SMD|)', font: { color: chartTheme.mutedColor, size: 12 } },
+          gridcolor: chartTheme.gridColor,
+          tickfont: { color: chartTheme.tickColor },
           range: [0, Math.max(...lp.raw_abs_smd) * 1.2],
         },
-        yaxis: { automargin: true, tickfont: { color: '#F8FAFC', size: 11 } },
+        yaxis: { automargin: true, tickfont: { color: chartTheme.textColor, size: 11 } },
         height: 380,
         margin: { t: 40, b: 40, l: 190, r: 20 },
-        legend: { orientation: 'h', y: -0.22, font: { color: '#F8FAFC' } },
-        paper_bgcolor: 'rgba(0,0,0,0)',
-        plot_bgcolor: 'rgba(0,0,0,0)',
+        legend: { orientation: 'h', y: -0.22, font: { color: chartTheme.textColor } },
+        paper_bgcolor: chartTheme.paperBg,
+        plot_bgcolor: chartTheme.plotBg,
       },
     };
-  }, [validationData]);
+  }, [validationData, chartTheme]);
 
   // Active Policy Metrics (Simulated or Baseline)
 
@@ -1129,10 +1205,19 @@ export default function App() {
 
         <div className="ec-sidebar-footer">
           <span className="ec-status-dot" aria-hidden="true" />
-          <div>
+          <div style={{ flex: 1, minWidth: 0 }}>
             <div className="ec-footer-title">EconoCausal Engine</div>
             <div className="ec-footer-caption">Pricing workspace</div>
           </div>
+          <button
+            type="button"
+            className="ec-sidebar-theme-btn"
+            onClick={toggleTheme}
+            title={theme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+            aria-label={theme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+          >
+            {theme === 'dark' ? '☀️' : '🌙'}
+          </button>
         </div>
       </aside>
 
@@ -1184,6 +1269,21 @@ export default function App() {
             <span>HiGHS MILP</span>
 
           </div>
+
+          <button
+            type="button"
+            className="theme-toggle-btn"
+            onClick={toggleTheme}
+            title={theme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+            aria-label={theme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+          >
+            <span className="theme-toggle-icon" aria-hidden="true">
+              {theme === 'dark' ? '☀️' : '🌙'}
+            </span>
+            <span className="theme-toggle-label">
+              {theme === 'dark' ? 'Light Mode' : 'Dark Mode'}
+            </span>
+          </button>
 
           <button
             className="btn btn-primary"
@@ -1858,7 +1958,7 @@ export default function App() {
                 <span className="pass-pill">✓ ALL |SMD| &lt; 0.10</span>
               </div>
               {lovePlotChart && (
-                <PlotlyChart data={lovePlotChart.data} layout={lovePlotChart.layout} />
+                <PlotlyChart data={lovePlotChart.data} layout={lovePlotChart.layout} theme={theme} />
               )}
             </div>
           </div>
@@ -1890,7 +1990,7 @@ export default function App() {
                   {validationData?.arm_10?.balance_records ? (
                     validationData.arm_10.balance_records.map((rec) => (
                       <tr key={rec.covariate}>
-                        <td style={{ fontWeight: 600, color: '#F8FAFC' }}>{rec.display_name}</td>
+                        <td style={{ fontWeight: 600, color: 'var(--text-main)' }}>{rec.display_name}</td>
                         <td className="mono-cell">{rec.raw_treated_mean.toLocaleString('en-IN')}</td>
                         <td className="mono-cell">{rec.raw_control_mean.toLocaleString('en-IN')}</td>
                         <td className="mono-cell" style={{ color: '#F59E0B' }}>{rec.raw_smd > 0 ? `+${rec.raw_smd.toFixed(4)}` : rec.raw_smd.toFixed(4)}</td>
@@ -1904,7 +2004,7 @@ export default function App() {
                     ))
                   ) : (
                     <tr>
-                      <td colSpan="8" style={{ textAlign: 'center', padding: '2rem', color: '#94A3B8' }}>
+                      <td colSpan="8" style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)' }}>
                         Loading covariate balance records...
                       </td>
                     </tr>
@@ -1917,7 +2017,7 @@ export default function App() {
           {/* 4 Causal Refutation Cards */}
           <div>
             <div style={{ marginBottom: '1rem' }}>
-              <h3 style={{ fontSize: '1.15rem', color: '#F8FAFC', fontWeight: 700 }}>
+              <h3 style={{ fontSize: '1.15rem', color: 'var(--text-main)', fontWeight: 700 }}>
                 Causal Sensitivity &amp; Falsification Stress Tests
               </h3>
               <p style={{ color: '#94A3B8', fontSize: '0.85rem' }}>
@@ -2313,6 +2413,8 @@ export default function App() {
 
                   layout={discountDonutChart.layout}
 
+                  theme={theme}
+
                 />
 
               )}
@@ -2383,6 +2485,8 @@ export default function App() {
 
                   layout={policyComparisonChart.layout}
 
+                  theme={theme}
+
                 />
 
               )}
@@ -2419,6 +2523,8 @@ export default function App() {
 
                   layout={incomeSegmentChart.layout}
 
+                  theme={theme}
+
                 />
 
               )}
@@ -2448,6 +2554,8 @@ export default function App() {
                   data={loyaltySegmentChart.data}
 
                   layout={loyaltySegmentChart.layout}
+
+                  theme={theme}
 
                 />
 
@@ -3089,10 +3197,10 @@ export default function App() {
             <div className="audit-report-body" style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
               <div className="validation-hero-card" style={{ padding: '1.25rem 1.5rem' }}>
                 <div>
-                  <h4 style={{ color: '#F8FAFC', margin: 0, fontSize: '1.1rem' }}>
+                  <h4 style={{ color: 'var(--text-main)', margin: 0, fontSize: '1.1rem' }}>
                     Production Causal Certification Status: <span style={{ color: '#10B981' }}>APPROVED</span>
                   </h4>
-                  <p style={{ color: '#94A3B8', fontSize: '0.82rem', margin: '0.35rem 0 0' }}>
+                  <p style={{ color: 'var(--text-muted)', fontSize: '0.82rem', margin: '0.35rem 0 0' }}>
                     Generated on {reportData?.generated_at ?? 'Active Environment'} | Evaluated on 10,000 customers
                   </p>
                 </div>
@@ -3101,7 +3209,7 @@ export default function App() {
                 </span>
               </div>
 
-              <div style={{ background: 'rgba(255, 255, 255, 0.03)', padding: '1.25rem', borderRadius: '8px', border: '1px solid rgba(255, 255, 255, 0.08)' }}>
+              <div style={{ background: 'var(--bg-glass)', padding: '1.25rem', borderRadius: '8px', border: '1px solid var(--border-subtle)' }}>
                 <h4 style={{ color: '#38BDF8', marginBottom: '0.5rem' }}>Executive Optimization Summary</h4>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.75rem', fontSize: '0.85rem' }}>
                   <div>Total Budget Cap: <strong>₹{baselinePolicy?.total_budget?.toLocaleString('en-IN')}</strong></div>
@@ -3113,13 +3221,13 @@ export default function App() {
 
               {reportData?.markdown_report && (
                 <div>
-                  <h4 style={{ color: '#F8FAFC', marginBottom: '0.5rem' }}>Causal Validation &amp; PSM Diagnostics Audit Log</h4>
+                  <h4 style={{ color: 'var(--text-main)', marginBottom: '0.5rem' }}>Causal Validation &amp; PSM Diagnostics Audit Log</h4>
                   <pre>{reportData.markdown_report}</pre>
                 </div>
               )}
             </div>
 
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem', marginTop: '1rem', borderTop: '1px solid rgba(255, 255, 255, 0.1)', paddingTop: '1rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem', marginTop: '1rem', borderTop: '1px solid var(--border-subtle)', paddingTop: '1rem' }}>
               <button className="btn btn-secondary" onClick={() => setShowReportModal(false)}>
                 Close
               </button>

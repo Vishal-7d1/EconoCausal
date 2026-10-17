@@ -2180,3 +2180,216 @@
   }
 }
 
+/* =========================================================
+   Light Theme for Navigation Shell & Dataset Explorer
+   ========================================================= */
+:root[data-theme="light"] .ec-app-shell {
+  --ec-shell-bg: #F8FAFC;
+  --ec-sidebar-bg: #FFFFFF;
+  --ec-surface: #FFFFFF;
+  --ec-surface-hover: #F1F5F9;
+  --ec-border: #E2E8F0;
+  --ec-text: #0F172A;
+  --ec-muted: #475569;
+  --ec-accent: #0284C7;
+  --ec-accent-soft: rgba(2, 132, 199, 0.1);
+
+  background:
+    radial-gradient(ellipse at 80% 0%, rgba(2, 132, 199, 0.035), transparent 43%),
+    #F8FAFC;
+  color: #0F172A;
+}
+
+:root[data-theme="light"] .ec-sidebar {
+  background: #FFFFFF;
+  border-right: 1px solid #E2E8F0;
+  box-shadow: 4px 0 24px rgba(15, 23, 42, 0.04);
+}
+
+:root[data-theme="light"] .ec-brand-mark {
+  color: #FFFFFF;
+  background: linear-gradient(135deg, #4F46E5 0%, #0284C7 100%);
+  box-shadow: 0 4px 14px rgba(79, 70, 229, 0.25);
+}
+
+:root[data-theme="light"] .ec-brand-name {
+  color: #0F172A;
+}
+
+:root[data-theme="light"] .ec-brand-caption {
+  color: #64748B;
+}
+
+:root[data-theme="light"] .ec-nav-heading {
+  color: #64748B;
+}
+
+:root[data-theme="light"] .ec-nav-item {
+  color: #475569;
+}
+
+:root[data-theme="light"] .ec-nav-item:hover {
+  color: #0F172A;
+  background: #F1F5F9;
+}
+
+:root[data-theme="light"] .ec-nav-item.active {
+  color: #0284C7;
+  background: rgba(2, 132, 199, 0.08);
+  border-color: rgba(2, 132, 199, 0.25);
+}
+
+:root[data-theme="light"] .ec-sidebar-footer {
+  border-top: 1px solid #E2E8F0;
+}
+
+:root[data-theme="light"] .ec-footer-title {
+  color: #0F172A;
+}
+
+:root[data-theme="light"] .ec-footer-caption {
+  color: #64748B;
+}
+
+:root[data-theme="light"] .ec-current-page {
+  background: #FFFFFF;
+  border-color: #E2E8F0;
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.04);
+}
+
+:root[data-theme="light"] .ec-current-page-label {
+  color: #64748B;
+}
+
+:root[data-theme="light"] .ec-current-page-title {
+  color: #0F172A;
+}
+
+:root[data-theme="light"] .ec-page-intro > h2 {
+  color: #0F172A;
+}
+
+:root[data-theme="light"] .ec-page-intro > p {
+  color: #475569;
+}
+
+:root[data-theme="light"] .ec-placeholder-card {
+  background: #FFFFFF;
+  border-color: #E2E8F0;
+  box-shadow: 0 2px 10px rgba(15, 23, 42, 0.04);
+}
+
+:root[data-theme="light"] .ec-placeholder-card h3 {
+  color: #0F172A;
+}
+
+:root[data-theme="light"] .ec-placeholder-card p,
+:root[data-theme="light"] .ec-muted {
+  color: #475569;
+}
+
+:root[data-theme="light"] .ec-dataset-heading-row h2 {
+  color: #0F172A;
+}
+
+:root[data-theme="light"] .ec-dataset-heading-row p {
+  color: #475569;
+}
+
+:root[data-theme="light"] .ec-dataset-type-tab {
+  background: #F1F5F9;
+  border-color: #E2E8F0;
+  color: #475569;
+}
+
+:root[data-theme="light"] .ec-dataset-type-tab:hover {
+  background: #E2E8F0;
+  color: #0F172A;
+}
+
+:root[data-theme="light"] .ec-dataset-type-tab.active {
+  background: #FFFFFF;
+  border-color: #0284C7;
+  color: #0284C7;
+  box-shadow: 0 4px 12px rgba(2, 132, 199, 0.12);
+}
+
+:root[data-theme="light"] .ec-dataset-type-copy strong {
+  color: #0F172A;
+}
+
+:root[data-theme="light"] .ec-dataset-type-copy small {
+  color: #64748B;
+}
+
+:root[data-theme="light"] .ec-dataset-stat-card {
+  background: #FFFFFF;
+  border-color: #E2E8F0;
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.04);
+}
+
+:root[data-theme="light"] .ec-dataset-stat-card strong {
+  color: #0F172A;
+}
+
+:root[data-theme="light"] .ec-dataset-stat-label {
+  color: #64748B;
+}
+
+:root[data-theme="light"] .ec-dataset-panel {
+  background: #FFFFFF;
+  border-color: #E2E8F0;
+  box-shadow: 0 4px 16px rgba(15, 23, 42, 0.04);
+}
+
+:root[data-theme="light"] .ec-dataset-panel-header {
+  border-bottom-color: #E2E8F0;
+}
+
+:root[data-theme="light"] .ec-dataset-table-wrap {
+  border-color: #E2E8F0;
+}
+
+:root[data-theme="light"] .ec-dataset-table th {
+  background: #F1F5F9;
+  color: #334155;
+  border-bottom: 2px solid #CBD5E1;
+}
+
+:root[data-theme="light"] .ec-dataset-table td {
+  color: #1E293B;
+  border-bottom: 1px solid #F1F5F9;
+}
+
+:root[data-theme="light"] .ec-dataset-table tbody tr:hover td {
+  background: rgba(2, 132, 199, 0.04);
+}
+
+:root[data-theme="light"] .ec-dataset-toolbar input,
+:root[data-theme="light"] .ec-dataset-toolbar select {
+  background: #FFFFFF;
+  border: 1px solid #CBD5E1;
+  color: #0F172A;
+}
+
+:root[data-theme="light"] .ec-dataset-toolbar input:focus,
+:root[data-theme="light"] .ec-dataset-toolbar select:focus {
+  border-color: #0284C7;
+  outline: none;
+}
+
+:root[data-theme="light"] .ec-dataset-results-line {
+  color: #64748B;
+}
+
+:root[data-theme="light"] .ec-dataset-pagination button {
+  background: #FFFFFF;
+  border: 1px solid #CBD5E1;
+  color: #0F172A;
+}
+
+:root[data-theme="light"] .ec-dataset-pagination button:hover:not(:disabled) {
+  background: #F1F5F9;
+  border-color: #94A3B8;
+}
+

@@ -172,6 +172,7 @@ The project enforces strict separation between observable model features and eva
    - Benchmarked against industry baselines: Random Allocation, Highest Cart Value heuristic, and Uniform flat discounting.
 7. **Step 7: Interactive Decision Dashboard** (`04_Frontend_Dashboard/`) — **[COMPLETED & TESTED]**
    - Executive decision dashboard for business stakeholders built with React 19, Plotly.js, Vanilla CSS, and a FastAPI backend service.
+   - **Premium Dual-Theme Architecture**: Seamless toggle between Obsidian Dark Mode (`#0B0F19`) and Off-White Slate Light Mode (`#F8FAFC`) with dynamic Plotly chart re-theming, CSS token transitions, and `localStorage` persistence.
    - Dynamic budget simulation controls (budget slider, margin ratio, liability mode, solver engine) with real-time optimization.
    - High-density KPI cards: cohort size, total budget, allocated spend, nominal coupon liability, expected redeemed discount cost, incremental conversions, incremental profit, and RODS.
    - Interactive Plotly visualizations for offer distribution, benchmark policy comparisons, income tier targeting rates, and loyalty member elasticity.
