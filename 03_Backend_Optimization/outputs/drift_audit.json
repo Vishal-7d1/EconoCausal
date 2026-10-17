@@ -1,0 +1,116 @@
+{
+  "timestamp_utc": "2026-10-17T09:29:12.976498+00:00",
+  "baseline_records": 10000,
+  "monitored_records": 4000,
+  "system_status": "STABLE",
+  "health_color": "emerald",
+  "max_psi": 0.003,
+  "mean_psi": 0.001,
+  "psi_threshold_stable": 0.1,
+  "psi_threshold_drift": 0.25,
+  "total_monitored_features": 9,
+  "drifted_features_count": 0,
+  "warning_features_count": 0,
+  "recommendation": "SYSTEM HEALTHY: Underlying customer behavior is statistically stable across all 9 confounders. Maximum PSI is 0.0030 (< 0.10 threshold). Retraining is not required.",
+  "feature_metrics": [
+    {
+      "feature": "age",
+      "label": "Age",
+      "psi_score": 0.0018,
+      "ks_statistic": 0.0089,
+      "ks_p_value": 0.9762,
+      "baseline_mean": 36.14,
+      "current_mean": 35.99,
+      "mean_shift_pct": -0.41,
+      "status": "STABLE"
+    },
+    {
+      "feature": "monthly_income_inr",
+      "label": "Monthly Income Inr",
+      "psi_score": 0.0008,
+      "ks_statistic": 0.0113,
+      "ks_p_value": 0.8556,
+      "baseline_mean": 53700.59,
+      "current_mean": 53296.85,
+      "mean_shift_pct": -0.75,
+      "status": "STABLE"
+    },
+    {
+      "feature": "web_visits_last_30d",
+      "label": "Web Visits Last 30D",
+      "psi_score": 0.0016,
+      "ks_statistic": 0.0123,
+      "ks_p_value": 0.7764,
+      "baseline_mean": 6.52,
+      "current_mean": 6.47,
+      "mean_shift_pct": -0.76,
+      "status": "STABLE"
+    },
+    {
+      "feature": "past_purchases_count",
+      "label": "Past Purchases Count",
+      "psi_score": 0.0005,
+      "ks_statistic": 0.0084,
+      "ks_p_value": 0.9869,
+      "baseline_mean": 3.74,
+      "current_mean": 3.77,
+      "mean_shift_pct": 0.87,
+      "status": "STABLE"
+    },
+    {
+      "feature": "days_since_last_purchase",
+      "label": "Days Since Last Purchase",
+      "psi_score": 0.0004,
+      "ks_statistic": 0.01,
+      "ks_p_value": 0.9353,
+      "baseline_mean": 44.36,
+      "current_mean": 43.72,
+      "mean_shift_pct": -1.44,
+      "status": "STABLE"
+    },
+    {
+      "feature": "cart_baseline_value_inr",
+      "label": "Cart Baseline Value Inr",
+      "psi_score": 0.003,
+      "ks_statistic": 0.0139,
+      "ks_p_value": 0.6348,
+      "baseline_mean": 1136.78,
+      "current_mean": 1141.01,
+      "mean_shift_pct": 0.37,
+      "status": "STABLE"
+    },
+    {
+      "feature": "loyalty_member",
+      "label": "Loyalty Member",
+      "psi_score": 0.0003,
+      "ks_statistic": 0.0078,
+      "ks_p_value": 0.9942,
+      "baseline_mean": 0.24,
+      "current_mean": 0.24,
+      "mean_shift_pct": 3.32,
+      "status": "STABLE"
+    },
+    {
+      "feature": "device_Mobile",
+      "label": "Device Mobile",
+      "psi_score": 0.0001,
+      "ks_statistic": 0.0042,
+      "ks_p_value": 1.0,
+      "baseline_mean": 0.61,
+      "current_mean": 0.6,
+      "mean_shift_pct": -0.7,
+      "status": "STABLE"
+    },
+    {
+      "feature": "device_Tablet",
+      "label": "Device Tablet",
+      "psi_score": 0.0003,
+      "ks_statistic": 0.005,
+      "ks_p_value": 1.0,
+      "baseline_mean": 0.1,
+      "current_mean": 0.1,
+      "mean_shift_pct": -4.84,
+      "status": "STABLE"
+    }
+  ]
+}

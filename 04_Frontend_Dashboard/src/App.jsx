@@ -1191,7 +1191,12 @@ export default function App() {
               key={item.id}
               type="button"
               className={`ec-nav-item ${activeTab === item.id ? 'active' : ''}`}
-              onClick={() => setActiveTab(item.id)}
+              onClick={() => {
+                setActiveTab(item.id);
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+                const mainArea = document.querySelector('.ec-main-area');
+                if (mainArea) mainArea.scrollTo({ top: 0, behavior: 'smooth' });
+              }}
               aria-current={activeTab === item.id ? 'page' : undefined}
             >
               <span className="ec-nav-icon" aria-hidden="true">{item.icon}</span>
@@ -1209,15 +1214,6 @@ export default function App() {
             <div className="ec-footer-title">EconoCausal Engine</div>
             <div className="ec-footer-caption">Pricing workspace</div>
           </div>
-          <button
-            type="button"
-            className="ec-sidebar-theme-btn"
-            onClick={toggleTheme}
-            title={theme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
-            aria-label={theme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
-          >
-            {theme === 'dark' ? '☀️' : '🌙'}
-          </button>
         </div>
       </aside>
 

@@ -65,31 +65,31 @@
   --transition-slow: 400ms cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-/* Light Mode: Elegant Off-White, Crisp Slate Typography, Refined Accents */
+/* Light Mode: Elegant Eye-Soothing Slate, Refined Accents, Ambient Glow */
 :root[data-theme="light"] {
   --bg-main: #F8FAFC;
   --bg-surface: #FFFFFF;
   --bg-card: #FFFFFF;
   --bg-card-hover: #F8FAFC;
-  --bg-glass: rgba(15, 23, 42, 0.03);
-  --bg-glass-active: rgba(15, 23, 42, 0.06);
-  --bg-input: #FFFFFF;
-  --bg-table-header: #F1F5F9;
-  --bg-table-stripe: rgba(248, 250, 252, 0.7);
+  --bg-glass: rgba(15, 23, 42, 0.02);
+  --bg-glass-active: rgba(15, 23, 42, 0.05);
+  --bg-input: #F8FAFC;
+  --bg-table-header: #F8FAFC;
+  --bg-table-stripe: rgba(248, 250, 252, 0.6);
   --bg-modal: #FFFFFF;
-  --bg-modal-backdrop: rgba(15, 23, 42, 0.6);
+  --bg-modal-backdrop: rgba(15, 23, 42, 0.45);
 
   --border-subtle: #E2E8F0;
-  --border-focus: rgba(79, 70, 229, 0.6);
-  --border-accent: rgba(5, 150, 105, 0.4);
+  --border-focus: rgba(79, 70, 229, 0.5);
+  --border-accent: rgba(5, 150, 105, 0.35);
 
-  /* Primary Typography Colors for Light Mode */
+  /* Primary Typography Colors for Light Mode - Eye Friendly & Balanced */
   --text-main: #0F172A;
   --text-muted: #475569;
   --text-dim: #64748B;
   --text-inverse: #FFFFFF;
 
-  /* Refined Semantic Accents for Light Mode */
+  /* Refined Semantic Accents for Light Mode (Pleasing, Eye-Soothing Natural Tones) */
   --color-emerald: #059669;
   --color-emerald-glow: rgba(5, 150, 105, 0.12);
   --color-cyan: #0284C7;
@@ -102,12 +102,12 @@
   --color-rose-glow: rgba(225, 29, 72, 0.12);
   --color-indigo: #4F46E5;
 
-  /* Shadows for Light Mode */
-  --shadow-card: 0 4px 16px -2px rgba(15, 23, 42, 0.06), 0 2px 4px -1px rgba(15, 23, 42, 0.03);
-  --shadow-dropdown: 0 10px 25px -5px rgba(15, 23, 42, 0.08), 0 8px 10px -6px rgba(15, 23, 42, 0.04);
-  --shadow-glow-emerald: 0 0 20px -4px rgba(5, 150, 105, 0.2);
-  --shadow-glow-violet: 0 0 20px -4px rgba(124, 58, 237, 0.2);
-  --shadow-glow-cyan: 0 0 20px -4px rgba(2, 132, 199, 0.2);
+  /* Shadows for Light Mode: Refined & Layered */
+  --shadow-card: 0 1px 3px 0 rgba(15, 23, 42, 0.03), 0 4px 14px -3px rgba(15, 23, 42, 0.04);
+  --shadow-dropdown: 0 10px 25px -5px rgba(15, 23, 42, 0.08), 0 8px 10px -6px rgba(15, 23, 42, 0.03);
+  --shadow-glow-emerald: 0 0 16px -2px rgba(5, 150, 105, 0.18);
+  --shadow-glow-violet: 0 0 16px -2px rgba(124, 58, 237, 0.18);
+  --shadow-glow-cyan: 0 0 16px -2px rgba(2, 132, 199, 0.18);
 }
 
 /* Base Reset */
