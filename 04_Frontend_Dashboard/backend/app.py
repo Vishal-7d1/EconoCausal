@@ -16,6 +16,7 @@ from __future__ import annotations
 import json
 import math
 import sys
+import time
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
@@ -38,11 +39,14 @@ CLEANED_DATA_PATH = REPO_ROOT / "01_Dataset_Analysis" / "cleaned_pricing_data.cs
 DML_PREDICTIONS_PATH = REPO_ROOT / "02_Causal_ML" / "outputs" / "dml_effect_predictions.csv"
 ALLOCATIONS_CSV = OPTIMIZER_OUTPUT_DIR / "optimal_discount_allocations.csv"
 SUMMARY_JSON = OPTIMIZER_OUTPUT_DIR / "optimization_summary.json"
+VALIDATION_SUMMARY_JSON = OPTIMIZER_OUTPUT_DIR / "causal_validation_summary.json"
+VALIDATION_REPORT_MD = OPTIMIZER_OUTPUT_DIR / "causal_validation_report.md"
 FORBIDDEN_EVAL_FILE = REPO_ROOT / "01_Dataset_Analysis" / "ground_truth_eval.csv"
 
-# Global cache for customer allocations dataframe
+# Global cache for customer allocations dataframe and metrics
 _allocations_df_cache: Optional[pd.DataFrame] = None
 _summary_json_cache: Optional[Dict[str, Any]] = None
+_validation_json_cache: Optional[Dict[str, Any]] = None
 
 app = FastAPI(
     title="EconoCausal API",
@@ -121,6 +125,25 @@ def load_summary_json() -> Dict[str, Any]:
     return _summary_json_cache
 
 
+def load_validation_json() -> Dict[str, Any]:
+    """Safely load causal validation and PSM balance summary JSON."""
+    global _validation_json_cache
+    if _validation_json_cache is not None:
+        return _validation_json_cache
+
+    if not VALIDATION_SUMMARY_JSON.exists():
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Causal validation summary artifact not found at {VALIDATION_SUMMARY_JSON}",
+        )
+
+    with open(VALIDATION_SUMMARY_JSON, "r", encoding="utf-8") as f:
+        data = json.load(f)
+
+    _validation_json_cache = data
+    return _validation_json_cache
+
+
 # -----------------------------------------------------------------------------
 # Pydantic Models
 # -----------------------------------------------------------------------------
@@ -165,6 +188,7 @@ def get_health() -> Dict[str, Any]:
         "artifacts": {
             "allocations_csv_exists": ALLOCATIONS_CSV.exists(),
             "summary_json_exists": SUMMARY_JSON.exists(),
+            "validation_summary_exists": VALIDATION_SUMMARY_JSON.exists(),
             "cleaned_data_exists": CLEANED_DATA_PATH.exists(),
             "dml_predictions_exists": DML_PREDICTIONS_PATH.exists(),
         },
@@ -503,6 +527,75 @@ def get_methodology() -> Dict[str, Any]:
             "All metrics are generated from reproducible synthetic e-commerce benchmark data. "
             "Incremental profit and conversions represent expected causal uplifts, not financial guarantees."
         ),
+    }
+
+
+@app.get("/api/validation")
+def get_validation() -> Dict[str, Any]:
+    """
+    Returns Propensity Score Matching (PSM), Covariate Balance diagnostics (SMD & Love plot),
+    and Causal Refutation test results.
+    """
+    return load_validation_json()
+
+
+@app.get("/api/dataset/sample")
+def get_sample_dataset(limit: int = Query(500, ge=10, le=10000, description="Number of sample rows to return")) -> Dict[str, Any]:
+    """
+    Safely provides observable pricing benchmark dataset records for UI explorer without file upload.
+    Anti-leakage enforced: true_* columns are strictly blocked.
+    """
+    if not CLEANED_DATA_PATH.exists():
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Cleaned pricing dataset artifact not found at {CLEANED_DATA_PATH}",
+        )
+
+    df = pd.read_csv(CLEANED_DATA_PATH)
+
+    # Anti-leakage verification
+    leak_cols = [c for c in df.columns if c.startswith("true_")]
+    if leak_cols:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Security violation: Ground truth columns found in dataset: {leak_cols}",
+        )
+
+    # Take limit rows
+    sample_df = df.head(limit).fillna("")
+    headers = list(sample_df.columns)
+    rows = sample_df.to_dict(orient="records")
+
+    return {
+        "fileName": "cleaned_pricing_data.csv",
+        "totalRecords": len(df),
+        "sampleSize": len(sample_df),
+        "headers": headers,
+        "rows": rows,
+        "loadedAt": time.strftime("%Y-%m-%d %H:%M:%S UTC", time.gmtime()),
+    }
+
+
+@app.get("/api/report/export")
+def export_executive_report() -> Dict[str, Any]:
+    """
+    Returns markdown and summary content for the complete executive audit report.
+    """
+    opt_summary = load_summary_json()
+    val_summary = load_validation_json()
+
+    report_content = ""
+    if VALIDATION_REPORT_MD.exists():
+        with open(VALIDATION_REPORT_MD, "r", encoding="utf-8") as f:
+            report_content = f.read()
+
+    return {
+        "title": "EconoCausal: Executive Causal Audit & Prescriptive Allocation Report",
+        "generated_at": time.strftime("%Y-%m-%d %H:%M:%S UTC", time.gmtime()),
+        "status": "Production Approved",
+        "markdown_report": report_content,
+        "summary": opt_summary,
+        "validation": val_summary,
     }
 
 

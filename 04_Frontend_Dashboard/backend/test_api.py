@@ -239,6 +239,43 @@ class TestDashboardAPI(unittest.TestCase):
             disk_summary["optimal_policy"]["allocated_budget"],
         )
 
+    def test_13_validation_endpoint(self):
+        """Verify validation endpoint returns PSM balance metrics, Love plot data, and refutations."""
+        resp = self.client.get("/api/validation")
+        self.assertEqual(resp.status_code, 200)
+        data = resp.json()
+        self.assertIn("causal_robustness_audit", data)
+        self.assertEqual(data["causal_robustness_audit"]["status"], "PASSED")
+        self.assertIn("arm_10", data)
+        self.assertIn("love_plot_data", data)
+        self.assertEqual(len(data["love_plot_data"]["covariates"]), 9)
+        self.assertEqual(len(data["arm_10"]["refutations"]), 4)
+
+    def test_14_dataset_sample_endpoint(self):
+        """Verify sample dataset endpoint returns clean pricing records without leakage."""
+        resp = self.client.get("/api/dataset/sample?limit=50")
+        self.assertEqual(resp.status_code, 200)
+        data = resp.json()
+        self.assertEqual(data["sampleSize"], 50)
+        self.assertEqual(data["totalRecords"], 10000)
+        self.assertIn("customer_id", data["headers"])
+        self.assertIn("discount_inr", data["headers"])
+        for row in data["rows"]:
+            for key in row.keys():
+                self.assertFalse(key.startswith("true_"), f"Leakage in sample dataset: {key}")
+
+    def test_15_export_report_endpoint(self):
+        """Verify report export endpoint returns executive audit report content."""
+        resp = self.client.get("/api/report/export")
+        self.assertEqual(resp.status_code, 200)
+        data = resp.json()
+        self.assertIn("title", data)
+        self.assertIn("status", data)
+        self.assertIn("markdown_report", data)
+        self.assertIn("summary", data)
+        self.assertIn("validation", data)
+
 
 if __name__ == "__main__":
     unittest.main()
+
