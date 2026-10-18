@@ -412,13 +412,14 @@ def solve_budget_optimization_milp(
 
     res = milp(c=c_obj, constraints=constraints, integrality=integrality)
 
-    if not res.success:
-        print(f"[!] Warning: MILP solver exited with status {res.status}: {res.message}")
+    if not res.success or res.x is None:
+        print(f"[!] Warning: MILP solver exited with status {getattr(res, 'status', 'UNKNOWN')}: {getattr(res, 'message', 'No message')}. Falling back to greedy allocation.")
+        return solve_budget_optimization_greedy(v10, v20, c10, c20, budget=budget, allow_multiple=allow_multiple)
 
     sol = np.round(np.clip(res.x, 0.0, 1.0)).astype(int)
     w10 = sol[0::2]
     w20 = sol[1::2]
-    obj_val = float(-res.fun)
+    obj_val = float(-res.fun) if hasattr(res, 'fun') and res.fun is not None else float(np.sum(w10 * v10 + w20 * v20))
 
     return w10, w20, obj_val
 

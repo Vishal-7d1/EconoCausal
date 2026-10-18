@@ -194,6 +194,10 @@ def clean_and_prepare_data(
         df["treatment_binary"] = (df["discount_inr"] > 0).astype(int)
 
     # Calculate discount depth ratio (fraction of baseline cart value)
+    # CRITICAL CAUSAL AUDIT NOTE:
+    # discount_depth_ratio depends directly on the assigned treatment (discount_inr).
+    # It must strictly be treated as a diagnostic / post-treatment variable and MUST NEVER
+    # be included in pretreatment covariate matrices (W or X) to avoid post-treatment conditioning bias.
     if "discount_inr" in df.columns and "cart_baseline_value_inr" in df.columns:
         # Avoid division by zero
         cart_safe = np.maximum(df["cart_baseline_value_inr"], 1.0)

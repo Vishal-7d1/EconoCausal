@@ -1,12 +1,14 @@
 {
-  "audit_timestamp": "2026-10-16 17:46:41 UTC",
+  "audit_timestamp": "2026-10-18 11:17:36 UTC",
   "causal_robustness_audit": {
     "robustness_score": 100.0,
-    "certification_grade": "Grade A+ (Production Certified)",
+    "certification_grade": "Validation Passed (Simulated Benchmark)",
+    "verification_status": "Validation Passed (Simulated Benchmark)",
     "status": "PASSED",
     "total_checks": 13,
     "passed_checks": 13,
-    "all_covariates_balanced": true
+    "all_covariates_balanced": true,
+    "disclaimer": "All 4 refutation checks and observable covariate balance passed on this simulated benchmark. Observational assumptions cannot be guaranteed for unobserved variables without randomized experiments."
   },
   "arm_10": {
     "arm_name": "\u20b910 Promotional Offer",

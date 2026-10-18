@@ -274,6 +274,58 @@ class TestBudgetOptimization(unittest.TestCase):
         parity_ratio = obj_grd / obj_milp if obj_milp > 0 else 1.0
         self.assertGreater(parity_ratio, 0.95, f"Greedy parity too low: {parity_ratio:.4f}")
 
+    def test_11_deterministic_milp_vs_exhaustive_search(self):
+        """Verify that MILP solver matches exact exhaustive search on deterministic small instance."""
+        sys.path.insert(0, str(self.repo_root / "03_Backend_Optimization"))
+        import optimize_budget as ob
+        import itertools
+
+        # Small 4-customer instance with known values and costs
+        v10 = np.array([5.0, 14.0, 3.0, 8.0])
+        v20 = np.array([12.0, 18.0, 7.0, 15.0])
+        c10 = np.array([10.0, 10.0, 10.0, 10.0])
+        c20 = np.array([20.0, 20.0, 20.0, 20.0])
+        budget = 30.0
+
+        # 1. Solve with MILP
+        w10_milp, w20_milp, obj_milp = ob.solve_budget_optimization_milp(v10, v20, c10, c20, budget=budget)
+        spent_milp = np.sum(w10_milp * c10 + w20_milp * c20)
+        self.assertLessEqual(spent_milp, budget)
+
+        # 2. Solve with Exhaustive Search over 3^4 = 81 combinations
+        best_obj_exhaustive = -np.inf
+        for choices in itertools.product([0, 10, 20], repeat=4):
+            cost = 0.0
+            val = 0.0
+            for i, choice in enumerate(choices):
+                if choice == 10:
+                    cost += c10[i]
+                    val += v10[i]
+                elif choice == 20:
+                    cost += c20[i]
+                    val += v20[i]
+            if cost <= budget:
+                if val > best_obj_exhaustive:
+                    best_obj_exhaustive = val
+
+        # 3. Assert MILP reaches exact global maximum verified by exhaustive search
+        self.assertAlmostEqual(obj_milp, best_obj_exhaustive, places=4)
+
+    def test_12_solver_negative_budget_and_edge_cases(self):
+        """Verify solver behavior under zero or negative budget edge cases."""
+        sys.path.insert(0, str(self.repo_root / "03_Backend_Optimization"))
+        import optimize_budget as ob
+
+        v10 = np.array([10.0, 20.0])
+        v20 = np.array([15.0, 25.0])
+        c10 = np.array([10.0, 10.0])
+        c20 = np.array([20.0, 20.0])
+
+        w10_neg, w20_neg, obj_neg = ob.solve_budget_optimization_milp(v10, v20, c10, c20, budget=-100.0)
+        self.assertEqual(obj_neg, 0.0)
+        self.assertEqual(np.sum(w10_neg), 0)
+        self.assertEqual(np.sum(w20_neg), 0)
+
 
 def main():
     suite = unittest.TestLoader().loadTestsFromTestCase(TestBudgetOptimization)
