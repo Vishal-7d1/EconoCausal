@@ -275,6 +275,33 @@ class TestDashboardAPI(unittest.TestCase):
         self.assertIn("summary", data)
         self.assertIn("validation", data)
 
+    def test_16_charts_qini_curve_structure(self):
+        """Verify that charts endpoint provides verified Qini cumulative uplift curve data."""
+        resp = self.client.get("/api/charts")
+        self.assertEqual(resp.status_code, 200)
+        data = resp.json()
+        self.assertIn("qini_curve", data)
+        qini = data["qini_curve"]
+        self.assertEqual(len(qini["percentiles"]), 11)
+        self.assertEqual(len(qini["causal_uplift"]), 11)
+        self.assertEqual(len(qini["random_baseline"]), 11)
+        self.assertGreater(qini["total_incremental_orders"], 500.0)
+        self.assertGreater(qini["targeted_customers"], 4000)
+        self.assertGreater(qini["qini_score"], 0.0)
+        # Causal targeting must outperform random targeting at 50% rollout
+        self.assertGreater(qini["causal_uplift"][5], qini["random_baseline"][5])
+
+    def test_17_cors_trusted_origins(self):
+        """Verify that CORS middleware permits configured trusted origins."""
+        origin = "http://localhost:5173"
+        resp = self.client.options(
+            "/api/health",
+            headers={"Origin": origin, "Access-Control-Request-Method": "GET"}
+        )
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.headers.get("access-control-allow-origin"), origin)
+        self.assertEqual(resp.headers.get("access-control-allow-credentials"), "true")
+
 
 if __name__ == "__main__":
     unittest.main()
