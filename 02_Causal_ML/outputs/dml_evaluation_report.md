@@ -1,7 +1,7 @@
 # EconoCausal: Double Machine Learning (DML) Model Report
 
 **Estimator**: `linear_dml` (EconML)  
-**Training Time**: 4.27 seconds  
+**Training Time**: 3.45 seconds  
 **Module**: `02_Causal_ML`  
 
 ---

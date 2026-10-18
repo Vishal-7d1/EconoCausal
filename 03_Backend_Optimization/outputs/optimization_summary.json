@@ -89,6 +89,6 @@
     "min_cart": 0.0,
     "max_discount_depth": 0.25,
     "allow_multiple": false,
-    "solve_time_seconds": 4.201
+    "solve_time_seconds": 3.124
   }
 }
