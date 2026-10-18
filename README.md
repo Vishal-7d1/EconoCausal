@@ -41,7 +41,7 @@ EconoCausal/
 │       └── eda_summary_report.md
 ├── 02_Causal_ML/                     # Double Machine Learning (EconML / CATE estimation)
 │   ├── train_dml.py                  # DML training, cross-fitting, evaluation & diagnostics
-│   ├── test_dml.py                   # Automated validation test suite (unit + statistical tests)
+│   ├── test_dml.py                   # Automated validation test suite (4 tests)
 │   └── outputs/                      # Saved DML models, predictions, metrics, and plots
 │       ├── dml_model.joblib          # Trained EconML DML estimator
 │       ├── dml_effect_predictions.csv# Customer-level CATE estimates (tau_hat_10, tau_hat_20)
@@ -52,17 +52,49 @@ EconoCausal/
 │       ├── 03_subgroup_cate_benchmark.png
 │       └── 04_propensity_support_diagnostics.png
 ├── 03_Backend_Optimization/          # Prescriptive discount allocation & budget optimization engine
-│   ├── optimize_budget.py            # Budget-constrained knapsack & MILP pricing optimizer
-│   ├── test_optimizer.py             # Automated unit & statistical test suite (10 tests)
+│   ├── optimize_budget.py            # Budget-constrained knapsack & MILP pricing optimizer (PuLP CBC / Greedy)
+│   ├── causal_validation.py          # PSM balance diagnostics (Love plot) & refutation falsification suite
+│   ├── test_optimizer.py             # Automated unit & mathematical test suite (12 tests)
+│   ├── test_validation.py            # Automated causal validation test suite (5 tests)
 │   └── outputs/                      # Saved allocation policies, metrics, and plots
-│       ├── optimal_discount_allocations.csv # Customer-level discount recommendations
+│       ├── customer_discount_allocations.csv # 10,000 customer recommendations
 │       ├── optimization_summary.json # Quantitative performance & baseline comparisons
 │       ├── optimization_report.md    # Detailed executive markdown report
+│       ├── causal_validation_summary.json # PSM SMD balance & refutation drift results
+│       ├── causal_validation_report.md    # Causal validation report
 │       ├── 01_budget_allocation_distribution.png
 │       ├── 02_policy_comparison.png
-│       └── 03_incremental_conversions_by_segment.png
-├── 04_Frontend_Dashboard/            # Executive decision dashboard (HTML, CSS, JS)
-│   └── index.html
+│       ├── 03_incremental_conversions_by_segment.png
+│       ├── 04_love_plot_balance.png
+│       └── 05_propensity_balance_distribution.png
+├── 04_Frontend_Dashboard/            # Executive decision dashboard (React 19, Plotly.js, FastAPI)
+│   ├── backend/
+│   │   ├── app.py                    # High-concurrency FastAPI service with CORS hardening
+│   │   └── test_api.py               # Automated REST API & security test suite (17 tests)
+│   ├── src/
+│   │   ├── App.jsx                   # React dashboard with Dark/Light mode, Qini curves, DAG & drift
+│   │   ├── App.css                   # Custom responsive CSS design system (Vanilla CSS)
+│   │   ├── index.css                 # Base theme variables & typography
+│   │   └── components/PlotlyChart.jsx# Dynamic reactive Plotly wrapper
+│   ├── dist/                         # Vite production build bundle
+│   ├── package.json                  # Node dependencies & build scripts
+│   └── vite.config.js                # Vite configuration
+├── 05_Final_Deliverables/            # Executive reports, slide decks, and audit dossiers
+│   ├── EconoCausal_Final_Project_Report.docx # Comprehensive 19-section final project report
+│   ├── EconoCausal_Final_Project_Report.pdf  # Publication PDF with page numbering
+│   ├── EconoCausal_Final_Submission.pdf      # Consolidated submission PDF package
+│   ├── EconoCausal_Final_Presentation.pptx   # 18-slide executive internship presentation deck
+│   ├── Model_Evaluation_Report.xlsx          # 8-sheet structured evaluation workbook
+│   ├── Model_Evaluation_Report.md            # Markdown companion report
+│   ├── FINAL_DEMO_SCRIPT.md                  # 10-12 min live walkthrough demonstration script
+│   └── audit/                                # Audit reports
+│       ├── PROJECT_AUDIT_REPORT.md           # Master audit & verification dossier
+│       ├── DATASET_VALIDATION_REPORT.md      # Data pipeline & anti-leakage audit
+│       ├── CAUSAL_MODEL_VALIDATION_REPORT.md # Econometric diagnostics & refutation audit
+│       ├── OPTIMIZER_VALIDATION_REPORT.md    # Optimization derivation & optimality audit
+│       ├── API_TEST_REPORT.md                # REST API test & security audit
+│       └── TEST_EXECUTION_REPORT.md          # 43/43 automated test execution log
+├── .gitignore                        # Git ignore rules for caches, builds, and venvs
 └── README.md                         # Central project documentation
 ```
 
@@ -70,17 +102,15 @@ EconoCausal/
 
 ## 3. Technology Stack
 
-- **Language**: Python 3.11.4
-- **Core Data Processing**: `pandas` (v2.3.3), `numpy` (v2.4.6)
-- **Machine Learning & Propensity**: `scikit-learn` (v1.8.0), `lightgbm` (v4.7.0)
-- **Causal Inference**: `econml` (v0.17.0)
-- **Scientific Computing & Statistics**: `scipy` (v1.17.0)
-- **Artifact Serialization**: `joblib` (v1.5.3)
-- **Visualization**: `matplotlib` (v3.10.8)
-- **Environment**: Windows (PowerShell)
-- **Planned Optimization Engine**: `scipy.optimize` (Module 3)
-- **Planned Backend & API**: `fastapi`, `uvicorn`
-- **Planned Frontend**: Vanilla HTML5, Vanilla CSS3 (custom design system), JavaScript
+- **Core Language**: Python 3.11.4 64-bit
+- **Frontend Framework**: React 19.2.8 with Vite 8.3.4 (ESM, Vanilla CSS design tokens)
+- **Interactive Visualization**: Plotly.js (responsive dynamic charts)
+- **Backend REST Framework**: FastAPI 0.110.0 with Uvicorn & Starlette TestClient
+- **Mathematical Optimization**: PuLP 2.8.0 with COIN-OR CBC MILP Solver v2.10.3 & Greedy Knapsack Heuristic
+- **Causal Machine Learning**: EconML 0.15.1 (`LinearDML`, `CausalForestDML`, R-Learner)
+- **Nuisance & ML Models**: Scikit-Learn 1.4+, LightGBM 4.7.0
+- **Document & Deliverable Generation**: `python-docx` 1.1.0+, `python-pptx` 0.6.23+, `openpyxl` 3.1.2+, `reportlab` 4.1.0+
+- **Quality Assurance**: Python `unittest`, Oxlint 1.81.0, Vite Production Rollup Bundler
 
 ---
 

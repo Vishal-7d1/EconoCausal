@@ -123,7 +123,7 @@ export default function App() {
 
   const [validationData, setValidationData] = useState(null);
 
-  const [dagData, setDagData] = useState(null);
+  const [_dagData, setDagData] = useState(null);
 
   const [driftData, setDriftData] = useState(null);
 
