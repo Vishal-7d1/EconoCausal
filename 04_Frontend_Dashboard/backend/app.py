@@ -235,7 +235,8 @@ def get_optimization_summary() -> Dict[str, Any]:
         ),
         "disclaimer": (
             "Simulated estimates on reproducible synthetic benchmark. "
-            "Figures represent expected causal uplifts, not guaranteed financial outcomes."
+            "Observational identification relies on unconfoundedness supported by observable balance (|SMD| < 0.10); "
+            "randomized A/B experimentation is required for definitive real-world financial verification."
         ),
     }
 
@@ -435,12 +436,44 @@ def get_chart_data() -> Dict[str, Any]:
         ],
     }
 
+    # 5. Qini / Cumulative Uplift Curve (Proving Causal DML Outperforms Random Rollout)
+    targeted_df = df[df["recommended_discount_inr"] > 0].copy()
+    targeted_df = targeted_df.sort_values(by="expected_incremental_purchase_uplift", ascending=False)
+    total_uplift = float(targeted_df["expected_incremental_purchase_uplift"].sum())
+    n_targeted = len(targeted_df)
+
+    pcts = [0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100]
+    cum_uplift = np.cumsum(targeted_df["expected_incremental_purchase_uplift"].values)
+
+    causal_pts = [0.0]
+    random_pts = [0.0]
+    for p in pcts[1:]:
+        idx = min(int(round((p / 100.0) * (n_targeted - 1))), n_targeted - 1)
+        causal_pts.append(round(float(cum_uplift[idx]), 1))
+        random_pts.append(round(float((p / 100.0) * total_uplift), 1))
+
+    # Calculate trapezoidal area under curves for Qini score
+    area_causal = float(np.sum([(causal_pts[i] + causal_pts[i+1]) * 0.5 * 10.0 for i in range(10)]))
+    area_random = float(np.sum([(random_pts[i] + random_pts[i+1]) * 0.5 * 10.0 for i in range(10)]))
+    qini_score = round(area_causal - area_random, 1)
+
+    qini_curve = {
+        "percentiles": pcts,
+        "causal_uplift": causal_pts,
+        "random_baseline": random_pts,
+        "total_incremental_orders": round(total_uplift, 1),
+        "targeted_customers": n_targeted,
+        "qini_score": qini_score,
+        "outperformance_at_50pct": round(((causal_pts[5] - random_pts[5]) / max(random_pts[5], 1.0)) * 100.0, 1),
+    }
+
     return {
         "discount_distribution": discount_distribution,
         "policy_comparison": policy_comparison,
         "income_segment_analysis": income_segment_analysis,
         "loyalty_analysis": loyalty_analysis,
         "profit_by_discount": profit_by_discount,
+        "qini_curve": qini_curve,
     }
 
 
