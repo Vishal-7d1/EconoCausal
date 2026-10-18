@@ -323,7 +323,7 @@ export default function App() {
         rows: parsed.rows,
       };
 
-      if (targetDatasetType === 'pricing') {
+      if (activeDatasetType === 'pricing') {
         setPricingDataset(dataset);
       } else {
         setGroundTruthDataset(dataset);
