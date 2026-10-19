@@ -1,121 +1,158 @@
 /* ==========================================================================
-   EconoCausal - Core Design Tokens & Global Reset
-   Theme: Clean White + Red Accent (Dynamic Pricing Style)
+   EconoCausal Dashboard — Design System Tokens
+   Primary Brand: Red #D9253D | Background: #F8F9FB | Cards: #FFFFFF
    ========================================================================== */
 
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+
 :root {
-  /* ── Light theme as DEFAULT (matching the reference dashboard) ── */
-  --bg-main:            #F5F6FA;
-  --bg-surface:         #FFFFFF;
-  --bg-card:            #FFFFFF;
-  --bg-card-hover:      #F8F9FC;
-  --bg-glass:           rgba(220, 38, 38, 0.04);
-  --bg-glass-active:    rgba(220, 38, 38, 0.08);
-  --bg-input:           #F8F9FC;
-  --bg-table-header:    #F8F9FC;
-  --bg-table-stripe:    rgba(245, 246, 250, 0.7);
-  --bg-modal:           #FFFFFF;
-  --bg-modal-backdrop:  rgba(15, 23, 42, 0.45);
+  /* ── Brand Colors (Red/Coral per spec) ── */
+  --color-primary:        #D9253D;
+  --color-primary-dark:   #B91C32;
+  --color-primary-light:  #FFF1F2;
+  --color-primary-mid:    #FECDD3;
+  --color-primary-border: rgba(217, 37, 61, 0.2);
 
-  --border-subtle:      #E5E7EB;
-  --border-focus:       rgba(220, 38, 38, 0.45);
-  --border-accent:      rgba(220, 38, 38, 0.25);
+  /* ── Backgrounds ── */
+  --bg-main:     #F8F9FB;
+  --bg-surface:  #FFFFFF;
+  --bg-card:     #FFFFFF;
+  --bg-hover:    #F8F9FB;
+  --bg-input:    #F8F9FB;
+  --bg-badge:    #F1F3F8;
 
-  /* Typography */
-  --text-main:          #111827;
-  --text-muted:         #6B7280;
-  --text-dim:           #9CA3AF;
-  --text-inverse:       #FFFFFF;
+  /* ── Text ── */
+  --text-primary:   #171923;
+  --text-secondary: #6B7280;
+  --text-tertiary:  #9CA3AF;
+  --text-inverse:   #FFFFFF;
+  --text-main:      #171923;   /* alias */
+  --text-muted:     #6B7280;   /* alias */
+  --text-dim:       #9CA3AF;   /* alias */
 
-  /* ── Brand Accent: Red (matching reference) ── */
-  --color-primary:      #DC2626;
-  --color-primary-light:#FEE2E2;
-  --color-primary-glow: rgba(220, 38, 38, 0.12);
+  /* ── Borders ── */
+  --border:        #E5E7EB;
+  --border-subtle: #E5E7EB;
+  --border-focus:  rgba(217, 37, 61, 0.4);
 
-  /* Semantic colors */
-  --color-emerald:      #16A34A;
-  --color-emerald-glow: rgba(22, 163, 74, 0.12);
+  /* ── Semantic ── */
+  --color-success:      #159447;
+  --color-success-bg:   #EAF8EF;
+  --color-success-border:rgba(21, 148, 71, 0.2);
+  --color-warning:      #F4AD24;
+  --color-warning-bg:   #FFFBEB;
+  --color-warning-border:rgba(244, 173, 36, 0.25);
+  --color-danger:       #DC3545;
+  --color-danger-bg:    #FFF1F2;
+  --color-danger-border:rgba(220, 53, 69, 0.2);
+
+  /* aliases used throughout components */
+  --color-emerald:      #159447;
+  --color-emerald-glow: rgba(21, 148, 71, 0.12);
   --color-cyan:         #0284C7;
   --color-cyan-glow:    rgba(2, 132, 199, 0.12);
   --color-violet:       #7C3AED;
   --color-violet-glow:  rgba(124, 58, 237, 0.12);
-  --color-amber:        #D97706;
-  --color-amber-glow:   rgba(217, 119, 6, 0.12);
-  --color-rose:         #DC2626;
-  --color-rose-glow:    rgba(220, 38, 38, 0.12);
+  --color-amber:        #F4AD24;
+  --color-amber-glow:   rgba(244, 173, 36, 0.12);
+  --color-rose:         #D9253D;
+  --color-rose-glow:    rgba(217, 37, 61, 0.12);
   --color-indigo:       #4F46E5;
 
-  /* Typography scale */
+  /* ── Typography ── */
   --font-sans:    'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   --font-heading: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
   --font-mono:    'JetBrains Mono', 'Fira Code', 'Courier New', monospace;
 
-  /* Shadows */
-  --shadow-card:     0 1px 3px 0 rgba(0,0,0,0.04), 0 4px 16px -3px rgba(0,0,0,0.06);
-  --shadow-dropdown: 0 10px 25px -5px rgba(0,0,0,0.08), 0 4px 10px -4px rgba(0,0,0,0.04);
-  --shadow-glow-primary: 0 0 16px -2px rgba(220, 38, 38, 0.18);
-  --shadow-glow-emerald: 0 0 16px -2px rgba(22, 163, 74, 0.18);
-  --shadow-glow-violet:  0 0 16px -2px rgba(124, 58, 237, 0.18);
-  --shadow-glow-cyan:    0 0 16px -2px rgba(2, 132, 199, 0.18);
+  /* ── Shadows ── */
+  --shadow-sm:   0 1px 2px 0 rgba(0,0,0,0.04);
+  --shadow-card: 0 1px 3px 0 rgba(0,0,0,0.05), 0 1px 2px -1px rgba(0,0,0,0.04);
+  --shadow-md:   0 4px 12px -2px rgba(0,0,0,0.07), 0 2px 6px -2px rgba(0,0,0,0.04);
+  --shadow-dropdown: 0 8px 20px -4px rgba(0,0,0,0.1), 0 2px 8px -2px rgba(0,0,0,0.06);
+  --shadow-glow-primary: 0 0 0 3px rgba(217, 37, 61, 0.12);
+  --shadow-glow-emerald: 0 0 12px -2px rgba(21, 148, 71, 0.2);
+  --shadow-glow-violet:  0 0 12px -2px rgba(124, 58, 237, 0.2);
+  --shadow-glow-cyan:    0 0 12px -2px rgba(2, 132, 199, 0.2);
 
-  /* Radii */
+  /* ── Radii ── */
+  --radius-xs:   4px;
   --radius-sm:   6px;
   --radius-md:   10px;
-  --radius-lg:   14px;
-  --radius-xl:   20px;
+  --radius-lg:   12px;
+  --radius-xl:   16px;
   --radius-full: 9999px;
 
-  /* Transitions */
-  --transition-fast:   150ms cubic-bezier(0.4, 0, 0.2, 1);
-  --transition-normal: 220ms cubic-bezier(0.4, 0, 0.2, 1);
-  --transition-slow:   380ms cubic-bezier(0.4, 0, 0.2, 1);
+  /* ── Transitions ── */
+  --transition-fast:   140ms cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-normal: 200ms cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-slow:   320ms cubic-bezier(0.4, 0, 0.2, 1);
 
+  /* ── Surface utility ── */
   --surface-sunken: #F1F3F8;
+  --bg-modal:        #FFFFFF;
+  --bg-modal-backdrop: rgba(23, 25, 35, 0.4);
+  --bg-table-header: #F8F9FB;
+  --bg-table-stripe: rgba(248,249,251,0.6);
+  --bg-card-hover:   #F8F9FB;
+  --bg-glass:        rgba(217,37,61,0.04);
+  --bg-glass-active: rgba(217,37,61,0.08);
 }
 
-/* Dark Mode overrides */
+/* ── Dark mode ── */
 :root[data-theme="dark"] {
-  --bg-main:            #0B0F19;
-  --bg-surface:         #111827;
-  --bg-card:            rgba(17, 24, 39, 0.8);
-  --bg-card-hover:      rgba(31, 41, 55, 0.9);
-  --bg-glass:           rgba(255,255,255,0.03);
-  --bg-glass-active:    rgba(255,255,255,0.08);
-  --bg-input:           rgba(17,24,39,0.9);
-  --bg-table-header:    rgba(17,24,39,0.95);
-  --bg-table-stripe:    rgba(255,255,255,0.015);
-  --bg-modal:           #111827;
-  --bg-modal-backdrop:  rgba(0,0,0,0.75);
+  --color-primary:        #EF4444;
+  --color-primary-dark:   #DC2626;
+  --color-primary-light:  rgba(239,68,68,0.12);
+  --color-primary-mid:    rgba(239,68,68,0.25);
+  --color-primary-border: rgba(239,68,68,0.3);
 
-  --border-subtle:      rgba(255,255,255,0.08);
-  --border-focus:       rgba(220, 38, 38, 0.5);
-  --border-accent:      rgba(220, 38, 38, 0.3);
+  --bg-main:     #0B0F19;
+  --bg-surface:  #111827;
+  --bg-card:     rgba(17,24,39,0.85);
+  --bg-hover:    rgba(31,41,55,0.9);
+  --bg-input:    rgba(17,24,39,0.9);
+  --bg-badge:    rgba(255,255,255,0.06);
 
-  --text-main:   #F8FAFC;
-  --text-muted:  #94A3B8;
-  --text-dim:    #64748B;
-  --text-inverse:#0B0F19;
+  --text-primary:   #F8FAFC;
+  --text-secondary: #94A3B8;
+  --text-tertiary:  #64748B;
+  --text-inverse:   #0B0F19;
+  --text-main:      #F8FAFC;
+  --text-muted:     #94A3B8;
+  --text-dim:       #64748B;
 
-  --color-primary:      #EF4444;
-  --color-primary-light:#7F1D1D;
-  --color-primary-glow: rgba(239, 68, 68, 0.15);
+  --border:        rgba(255,255,255,0.1);
+  --border-subtle: rgba(255,255,255,0.08);
+  --border-focus:  rgba(239,68,68,0.5);
+
+  --color-success:       #10B981;
+  --color-success-bg:    rgba(16,185,129,0.1);
+  --color-success-border:rgba(16,185,129,0.25);
+  --color-warning:       #F59E0B;
+  --color-warning-bg:    rgba(245,158,11,0.1);
+  --color-warning-border:rgba(245,158,11,0.25);
+  --color-danger:        #EF4444;
+  --color-danger-bg:     rgba(239,68,68,0.1);
+  --color-danger-border: rgba(239,68,68,0.25);
 
   --color-emerald:      #10B981;
   --color-emerald-glow: rgba(16,185,129,0.15);
   --color-cyan:         #06B6D4;
   --color-cyan-glow:    rgba(6,182,212,0.15);
-  --color-violet:       #8B5CF6;
-  --color-violet-glow:  rgba(139,92,246,0.15);
   --color-amber:        #F59E0B;
   --color-amber-glow:   rgba(245,158,11,0.15);
   --color-rose:         #EF4444;
   --color-rose-glow:    rgba(239,68,68,0.15);
-  --color-indigo:       #6366F1;
 
-  --shadow-card:     0 4px 20px -2px rgba(0,0,0,0.5), 0 2px 6px -1px rgba(0,0,0,0.4);
-  --shadow-dropdown: 0 10px 25px -5px rgba(0,0,0,0.5), 0 8px 10px -6px rgba(0,0,0,0.4);
-
+  --shadow-card:    0 4px 20px -2px rgba(0,0,0,0.5), 0 2px 6px -1px rgba(0,0,0,0.4);
   --surface-sunken: rgba(5,8,18,0.6);
+  --bg-modal:       #111827;
+  --bg-modal-backdrop: rgba(0,0,0,0.7);
+  --bg-table-header: rgba(17,24,39,0.95);
+  --bg-table-stripe: rgba(255,255,255,0.015);
+  --bg-card-hover:   rgba(31,41,55,0.9);
+  --bg-glass:        rgba(255,255,255,0.03);
+  --bg-glass-active: rgba(255,255,255,0.08);
 }
 
 /* ── Base Reset ── */
@@ -128,23 +165,15 @@
 html {
   font-family: var(--font-sans);
   background-color: var(--bg-main);
-  color: var(--text-main);
+  color: var(--text-primary);
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   scroll-behavior: smooth;
   color-scheme: light;
-  transition: background-color var(--transition-normal), color var(--transition-normal);
 }
 
-:root[data-theme="dark"] html,
-html:has(:root[data-theme="dark"]) {
-  color-scheme: dark;
-}
-
-[data-theme="dark"] html {
-  color-scheme: dark;
-}
+:root[data-theme="dark"] html { color-scheme: dark; }
 
 body {
   min-height: 100vh;
@@ -153,17 +182,11 @@ body {
   transition: background var(--transition-normal), color var(--transition-normal);
 }
 
-:root[data-theme="dark"] body {
-  background: radial-gradient(circle at 15% 10%, rgba(220, 38, 38, 0.06) 0%, transparent 40%),
-              radial-gradient(circle at 85% 20%, rgba(16, 185, 129, 0.04) 0%, transparent 45%),
-              var(--bg-main);
-}
-
 h1, h2, h3, h4, h5, h6 {
   font-family: var(--font-heading);
   font-weight: 700;
-  letter-spacing: -0.02em;
-  color: var(--text-main);
+  letter-spacing: -0.015em;
+  color: var(--text-primary);
 }
 
 a {
@@ -171,10 +194,7 @@ a {
   text-decoration: none;
   transition: color var(--transition-fast);
 }
-
-a:hover {
-  color: #B91C1C;
-}
+a:hover { color: var(--color-primary-dark); }
 
 button {
   font-family: var(--font-sans);
@@ -184,20 +204,16 @@ button {
   outline: none;
 }
 
-input, select {
+input, select, textarea {
   font-family: var(--font-sans);
   outline: none;
 }
 
-/* ── Custom Scrollbar ── */
-::-webkit-scrollbar { width: 6px; height: 6px; }
-::-webkit-scrollbar-track { background: var(--bg-surface); }
+/* ── Scrollbar ── */
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: var(--bg-main); }
 ::-webkit-scrollbar-thumb {
-  background: #D1D5DB;
+  background: var(--border);
   border-radius: var(--radius-full);
 }
-::-webkit-scrollbar-thumb:hover { background: #9CA3AF; }
-
-:root[data-theme="dark"] ::-webkit-scrollbar-track { background: rgba(11,15,25,0.7); }
-:root[data-theme="dark"] ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); }
-:root[data-theme="dark"] ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.25); }
+::-webkit-scrollbar-thumb:hover { background: var(--text-tertiary); }
