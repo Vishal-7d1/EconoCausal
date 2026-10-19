@@ -1,122 +1,124 @@
 /* ==========================================================================
-   EconoCausal - Core Design Tokens and Global Reset (Vanilla CSS)
+   EconoCausal - Core Design Tokens & Global Reset
+   Theme: Clean White + Red Accent (Dynamic Pricing Style)
    ========================================================================== */
 
 :root {
-  /* Color Palette: Deep Obsidian Slate & Vivid Accents */
-  --bg-main: #0B0F19;
-  --bg-surface: #111827;
-  --bg-card: rgba(17, 24, 39, 0.75);
-  --bg-card-hover: rgba(31, 41, 55, 0.85);
-  --bg-glass: rgba(255, 255, 255, 0.03);
-  --bg-glass-active: rgba(255, 255, 255, 0.08);
+  /* ── Light theme as DEFAULT (matching the reference dashboard) ── */
+  --bg-main:            #F5F6FA;
+  --bg-surface:         #FFFFFF;
+  --bg-card:            #FFFFFF;
+  --bg-card-hover:      #F8F9FC;
+  --bg-glass:           rgba(220, 38, 38, 0.04);
+  --bg-glass-active:    rgba(220, 38, 38, 0.08);
+  --bg-input:           #F8F9FC;
+  --bg-table-header:    #F8F9FC;
+  --bg-table-stripe:    rgba(245, 246, 250, 0.7);
+  --bg-modal:           #FFFFFF;
+  --bg-modal-backdrop:  rgba(15, 23, 42, 0.45);
 
-  --bg-input: rgba(17, 24, 39, 0.85);
-  --bg-table-header: rgba(17, 24, 39, 0.95);
-  --bg-table-stripe: rgba(255, 255, 255, 0.015);
-  --bg-modal: #111827;
-  --bg-modal-backdrop: rgba(0, 0, 0, 0.75);
-
-  --border-subtle: rgba(255, 255, 255, 0.08);
-  --border-focus: rgba(99, 102, 241, 0.5);
-  --border-accent: rgba(16, 185, 129, 0.3);
-
-  /* Primary Typography Colors */
-  --text-main: #F8FAFC;
-  --text-muted: #94A3B8;
-  --text-dim: #64748B;
-  --text-inverse: #0B0F19;
-
-  /* Semantic Accents */
-  --color-emerald: #10B981;
-  --color-emerald-glow: rgba(16, 185, 129, 0.15);
-  --color-cyan: #06B6D4;
-  --color-cyan-glow: rgba(6, 182, 212, 0.15);
-  --color-violet: #8B5CF6;
-  --color-violet-glow: rgba(139, 92, 246, 0.15);
-  --color-amber: #F59E0B;
-  --color-amber-glow: rgba(245, 158, 11, 0.15);
-  --color-rose: #F43F5E;
-  --color-rose-glow: rgba(244, 63, 94, 0.15);
-  --color-indigo: #6366F1;
+  --border-subtle:      #E5E7EB;
+  --border-focus:       rgba(220, 38, 38, 0.45);
+  --border-accent:      rgba(220, 38, 38, 0.25);
 
   /* Typography */
-  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  --font-heading: 'Outfit', 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-  --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
+  --text-main:          #111827;
+  --text-muted:         #6B7280;
+  --text-dim:           #9CA3AF;
+  --text-inverse:       #FFFFFF;
 
-  /* Shadows & Glassmorphism */
-  --shadow-card: 0 4px 20px -2px rgba(0, 0, 0, 0.5), 0 2px 6px -1px rgba(0, 0, 0, 0.4);
-  --shadow-dropdown: 0 10px 25px -5px rgba(0, 0, 0, 0.5), 0 8px 10px -6px rgba(0, 0, 0, 0.4);
-  --shadow-glow-emerald: 0 0 24px -4px rgba(16, 185, 129, 0.3);
-  --shadow-glow-violet: 0 0 24px -4px rgba(139, 92, 246, 0.3);
-  --shadow-glow-cyan: 0 0 24px -4px rgba(6, 182, 212, 0.3);
+  /* ── Brand Accent: Red (matching reference) ── */
+  --color-primary:      #DC2626;
+  --color-primary-light:#FEE2E2;
+  --color-primary-glow: rgba(220, 38, 38, 0.12);
 
-  /* Layout & Radii */
-  --radius-sm: 6px;
-  --radius-md: 10px;
-  --radius-lg: 16px;
-  --radius-xl: 24px;
+  /* Semantic colors */
+  --color-emerald:      #16A34A;
+  --color-emerald-glow: rgba(22, 163, 74, 0.12);
+  --color-cyan:         #0284C7;
+  --color-cyan-glow:    rgba(2, 132, 199, 0.12);
+  --color-violet:       #7C3AED;
+  --color-violet-glow:  rgba(124, 58, 237, 0.12);
+  --color-amber:        #D97706;
+  --color-amber-glow:   rgba(217, 119, 6, 0.12);
+  --color-rose:         #DC2626;
+  --color-rose-glow:    rgba(220, 38, 38, 0.12);
+  --color-indigo:       #4F46E5;
+
+  /* Typography scale */
+  --font-sans:    'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-heading: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-mono:    'JetBrains Mono', 'Fira Code', 'Courier New', monospace;
+
+  /* Shadows */
+  --shadow-card:     0 1px 3px 0 rgba(0,0,0,0.04), 0 4px 16px -3px rgba(0,0,0,0.06);
+  --shadow-dropdown: 0 10px 25px -5px rgba(0,0,0,0.08), 0 4px 10px -4px rgba(0,0,0,0.04);
+  --shadow-glow-primary: 0 0 16px -2px rgba(220, 38, 38, 0.18);
+  --shadow-glow-emerald: 0 0 16px -2px rgba(22, 163, 74, 0.18);
+  --shadow-glow-violet:  0 0 16px -2px rgba(124, 58, 237, 0.18);
+  --shadow-glow-cyan:    0 0 16px -2px rgba(2, 132, 199, 0.18);
+
+  /* Radii */
+  --radius-sm:   6px;
+  --radius-md:   10px;
+  --radius-lg:   14px;
+  --radius-xl:   20px;
   --radius-full: 9999px;
 
   /* Transitions */
-  --transition-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
-  --transition-normal: 250ms cubic-bezier(0.4, 0, 0.2, 1);
-  --transition-slow: 400ms cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-fast:   150ms cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-normal: 220ms cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-slow:   380ms cubic-bezier(0.4, 0, 0.2, 1);
 
-  /* Surface utility tokens */
-  --surface-sunken: rgba(5, 8, 18, 0.6);
+  --surface-sunken: #F1F3F8;
 }
 
-/* Light Mode: Elegant Eye-Soothing Slate, Refined Accents, Ambient Glow */
-:root[data-theme="light"] {
-  --bg-main: #F8FAFC;
-  --bg-surface: #FFFFFF;
-  --bg-card: #FFFFFF;
-  --bg-card-hover: #F8FAFC;
-  --bg-glass: rgba(15, 23, 42, 0.02);
-  --bg-glass-active: rgba(15, 23, 42, 0.05);
-  --bg-input: #F8FAFC;
-  --bg-table-header: #F8FAFC;
-  --bg-table-stripe: rgba(248, 250, 252, 0.6);
-  --bg-modal: #FFFFFF;
-  --bg-modal-backdrop: rgba(15, 23, 42, 0.45);
+/* Dark Mode overrides */
+:root[data-theme="dark"] {
+  --bg-main:            #0B0F19;
+  --bg-surface:         #111827;
+  --bg-card:            rgba(17, 24, 39, 0.8);
+  --bg-card-hover:      rgba(31, 41, 55, 0.9);
+  --bg-glass:           rgba(255,255,255,0.03);
+  --bg-glass-active:    rgba(255,255,255,0.08);
+  --bg-input:           rgba(17,24,39,0.9);
+  --bg-table-header:    rgba(17,24,39,0.95);
+  --bg-table-stripe:    rgba(255,255,255,0.015);
+  --bg-modal:           #111827;
+  --bg-modal-backdrop:  rgba(0,0,0,0.75);
 
-  --border-subtle: #E2E8F0;
-  --border-focus: rgba(79, 70, 229, 0.5);
-  --border-accent: rgba(5, 150, 105, 0.35);
+  --border-subtle:      rgba(255,255,255,0.08);
+  --border-focus:       rgba(220, 38, 38, 0.5);
+  --border-accent:      rgba(220, 38, 38, 0.3);
 
-  /* Primary Typography Colors for Light Mode - Eye Friendly & Balanced */
-  --text-main: #0F172A;
-  --text-muted: #475569;
-  --text-dim: #64748B;
-  --text-inverse: #FFFFFF;
+  --text-main:   #F8FAFC;
+  --text-muted:  #94A3B8;
+  --text-dim:    #64748B;
+  --text-inverse:#0B0F19;
 
-  /* Refined Semantic Accents for Light Mode (Pleasing, Eye-Soothing Natural Tones) */
-  --color-emerald: #059669;
-  --color-emerald-glow: rgba(5, 150, 105, 0.12);
-  --color-cyan: #0284C7;
-  --color-cyan-glow: rgba(2, 132, 199, 0.12);
-  --color-violet: #7C3AED;
-  --color-violet-glow: rgba(124, 58, 237, 0.12);
-  --color-amber: #D97706;
-  --color-amber-glow: rgba(217, 119, 6, 0.12);
-  --color-rose: #E11D48;
-  --color-rose-glow: rgba(225, 29, 72, 0.12);
-  --color-indigo: #4F46E5;
+  --color-primary:      #EF4444;
+  --color-primary-light:#7F1D1D;
+  --color-primary-glow: rgba(239, 68, 68, 0.15);
 
-  /* Surface utility tokens for Light Mode */
-  --surface-sunken: rgba(241, 245, 249, 0.9);
+  --color-emerald:      #10B981;
+  --color-emerald-glow: rgba(16,185,129,0.15);
+  --color-cyan:         #06B6D4;
+  --color-cyan-glow:    rgba(6,182,212,0.15);
+  --color-violet:       #8B5CF6;
+  --color-violet-glow:  rgba(139,92,246,0.15);
+  --color-amber:        #F59E0B;
+  --color-amber-glow:   rgba(245,158,11,0.15);
+  --color-rose:         #EF4444;
+  --color-rose-glow:    rgba(239,68,68,0.15);
+  --color-indigo:       #6366F1;
 
-  /* Shadows for Light Mode: Refined & Layered */
-  --shadow-card: 0 1px 3px 0 rgba(15, 23, 42, 0.03), 0 4px 14px -3px rgba(15, 23, 42, 0.04);
-  --shadow-dropdown: 0 10px 25px -5px rgba(15, 23, 42, 0.08), 0 8px 10px -6px rgba(15, 23, 42, 0.03);
-  --shadow-glow-emerald: 0 0 16px -2px rgba(5, 150, 105, 0.18);
-  --shadow-glow-violet: 0 0 16px -2px rgba(124, 58, 237, 0.18);
-  --shadow-glow-cyan: 0 0 16px -2px rgba(2, 132, 199, 0.18);
+  --shadow-card:     0 4px 20px -2px rgba(0,0,0,0.5), 0 2px 6px -1px rgba(0,0,0,0.4);
+  --shadow-dropdown: 0 10px 25px -5px rgba(0,0,0,0.5), 0 8px 10px -6px rgba(0,0,0,0.4);
+
+  --surface-sunken: rgba(5,8,18,0.6);
 }
 
-/* Base Reset */
+/* ── Base Reset ── */
 *, *::before, *::after {
   box-sizing: border-box;
   margin: 0;
@@ -131,48 +133,47 @@ html {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   scroll-behavior: smooth;
-  color-scheme: dark;
+  color-scheme: light;
   transition: background-color var(--transition-normal), color var(--transition-normal);
 }
 
-html[data-theme="light"],
-:root[data-theme="light"] {
-  color-scheme: light;
+:root[data-theme="dark"] html,
+html:has(:root[data-theme="dark"]) {
+  color-scheme: dark;
+}
+
+[data-theme="dark"] html {
+  color-scheme: dark;
 }
 
 body {
   min-height: 100vh;
   overflow-x: hidden;
-  background: radial-gradient(circle at 15% 10%, rgba(99, 102, 241, 0.08) 0%, transparent 40%),
-              radial-gradient(circle at 85% 20%, rgba(16, 185, 129, 0.06) 0%, transparent 45%),
-              radial-gradient(circle at 50% 80%, rgba(6, 182, 212, 0.05) 0%, transparent 50%),
-              var(--bg-main);
-  background-attachment: fixed;
+  background: var(--bg-main);
   transition: background var(--transition-normal), color var(--transition-normal);
 }
 
-:root[data-theme="light"] body {
-  background: radial-gradient(circle at 15% 10%, rgba(99, 102, 241, 0.035) 0%, transparent 40%),
-              radial-gradient(circle at 85% 20%, rgba(5, 150, 105, 0.03) 0%, transparent 45%),
-              radial-gradient(circle at 50% 80%, rgba(2, 132, 199, 0.03) 0%, transparent 50%),
+:root[data-theme="dark"] body {
+  background: radial-gradient(circle at 15% 10%, rgba(220, 38, 38, 0.06) 0%, transparent 40%),
+              radial-gradient(circle at 85% 20%, rgba(16, 185, 129, 0.04) 0%, transparent 45%),
               var(--bg-main);
 }
 
 h1, h2, h3, h4, h5, h6 {
   font-family: var(--font-heading);
+  font-weight: 700;
   letter-spacing: -0.02em;
-  font-weight: 600;
   color: var(--text-main);
 }
 
 a {
-  color: var(--color-cyan);
+  color: var(--color-primary);
   text-decoration: none;
   transition: color var(--transition-fast);
 }
 
 a:hover {
-  color: #38BDF8;
+  color: #B91C1C;
 }
 
 button {
@@ -188,21 +189,15 @@ input, select {
   outline: none;
 }
 
-/* Custom Scrollbar */
-::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
-}
-
-::-webkit-scrollbar-track {
-  background: rgba(11, 15, 25, 0.7);
-}
-
+/* ── Custom Scrollbar ── */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: var(--bg-surface); }
 ::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.15);
+  background: #D1D5DB;
   border-radius: var(--radius-full);
 }
+::-webkit-scrollbar-thumb:hover { background: #9CA3AF; }
 
-::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.25);
-}
+:root[data-theme="dark"] ::-webkit-scrollbar-track { background: rgba(11,15,25,0.7); }
+:root[data-theme="dark"] ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); }
+:root[data-theme="dark"] ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.25); }
