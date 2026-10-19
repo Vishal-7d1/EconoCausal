@@ -1,24 +1,18 @@
 .ec-app-shell {
 
-  --ec-shell-bg: #0a1220;
-
-  --ec-sidebar-bg: #0d1727;
-
-  --ec-surface: #111b2c;
-
-  --ec-surface-hover: #19263b;
-
-  --ec-border: rgba(148, 163, 184, 0.16);
-
-  --ec-text: #f1f5f9;
-
-  --ec-muted: #94a3b8;
-
-  --ec-accent: #22d3ee;
+  /* ── Light theme sidebar (matches reference dashboard) ── */
+  --ec-shell-bg:      #F5F6FA;
+  --ec-sidebar-bg:    #FFFFFF;
+  --ec-surface:       #F8F9FC;
+  --ec-surface-hover: #F3F4F6;
+  --ec-border:        #E5E7EB;
+  --ec-text:          #111827;
+  --ec-muted:         #6B7280;
+  --ec-accent:        #DC2626;
 
   display: grid;
 
-  grid-template-columns: 248px minmax(0, 1fr);
+  grid-template-columns: 220px minmax(0, 1fr);
 
   min-height: 100vh;
 
@@ -40,7 +34,7 @@
 
   flex-direction: column;
 
-  width: 248px;
+  width: 220px;
 
   height: 100vh;
 
@@ -48,11 +42,13 @@
 
   box-sizing: border-box;
 
-  padding: 24px 14px 16px;
+  padding: 20px 12px 16px;
 
   border-right: 1px solid var(--ec-border);
 
   background: var(--ec-sidebar-bg);
+
+  box-shadow: 1px 0 0 0 #E5E7EB;
 
 }
 
@@ -72,21 +68,21 @@
 
   display: grid;
 
-  flex: 0 0 42px;
+  flex: 0 0 36px;
 
   place-items: center;
 
-  width: 42px;
+  width: 36px;
 
-  height: 42px;
+  height: 36px;
 
-  border-radius: 12px;
+  border-radius: 10px;
 
-  color: #08202b;
+  color: #FFFFFF;
 
   background: var(--ec-accent);
 
-  font-size: 15px;
+  font-size: 14px;
 
   font-weight: 900;
 
@@ -98,9 +94,9 @@
 
   color: var(--ec-text);
 
-  font-size: 1rem;
+  font-size: 0.95rem;
 
-  font-weight: 750;
+  font-weight: 700;
 
   letter-spacing: -0.3px;
 
@@ -108,27 +104,29 @@
 
 .ec-brand-caption {
 
-  margin-top: 4px;
+  margin-top: 2px;
 
   color: var(--ec-muted);
 
-  font-size: 0.61rem;
+  font-size: 0.62rem;
 
-  letter-spacing: 1.15px;
+  letter-spacing: 0.5px;
 
 }
 
 .ec-nav-heading {
 
-  padding: 0 12px 10px;
+  padding: 0 12px 8px;
 
-  color: #64748b;
+  color: #9CA3AF;
 
-  font-size: 0.68rem;
+  font-size: 0.65rem;
 
-  font-weight: 750;
+  font-weight: 600;
 
-  letter-spacing: 1.4px;
+  letter-spacing: 1px;
+
+  text-transform: uppercase;
 
 }
 
@@ -152,21 +150,21 @@
 
   align-items: center;
 
-  gap: 12px;
+  gap: 10px;
 
   width: 100%;
 
-  min-height: 46px;
+  min-height: 40px;
 
   box-sizing: border-box;
 
-  padding: 0 12px;
+  padding: 0 10px;
 
   border: 1px solid transparent;
 
-  border-radius: 10px;
+  border-radius: 8px;
 
-  color: #a8b6c9;
+  color: #6B7280;
 
   background: transparent;
 
@@ -174,7 +172,9 @@
 
   font: inherit;
 
-  font-size: 0.87rem;
+  font-size: 0.855rem;
+
+  font-weight: 500;
 
   cursor: pointer;
 
@@ -184,19 +184,21 @@
 
 .ec-nav-item:hover {
 
-  color: #fff;
+  color: #111827;
 
-  background: var(--ec-surface-hover);
+  background: #F3F4F6;
 
 }
 
 .ec-nav-item.active {
 
-  color: #e7fbff;
+  color: #DC2626;
 
-  background: rgba(34, 211, 238, 0.1);
+  background: #FEF2F2;
 
-  border-color: rgba(34, 211, 238, 0.22);
+  border-color: rgba(220, 38, 38, 0.18);
+
+  font-weight: 600;
 
 }
 
@@ -232,7 +234,7 @@
 
   border-radius: 50%;
 
-  background: var(--ec-accent);
+  background: #DC2626;
 
 }
 
@@ -262,9 +264,9 @@
 
   border-radius: 50%;
 
-  background: #34d399;
+  background: #16A34A;
 
-  box-shadow: 0 0 10px rgba(52, 211, 153, 0.3);
+  box-shadow: 0 0 8px rgba(22, 163, 74, 0.35);
 
 }
 
@@ -321,28 +323,29 @@
   align-items: center;
   gap: 10px;
   margin: 0 0 1.25rem;
-  padding: 0.55rem 1rem;
-  border: 1px solid var(--ec-border);
+  padding: 0.5rem 1rem;
+  border: 1px solid #E5E7EB;
   border-radius: 10px;
-  background: rgba(17, 27, 44, 0.65);
-  backdrop-filter: blur(8px);
+  background: #FFFFFF;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.04);
 }
 
 .ec-current-page-label {
-  color: #818CF8;
-  background: rgba(99, 102, 241, 0.15);
-  border: 1px solid rgba(99, 102, 241, 0.25);
-  font-size: 0.65rem;
+  color: #DC2626;
+  background: #FEF2F2;
+  border: 1px solid rgba(220, 38, 38, 0.2);
+  font-size: 0.63rem;
   font-weight: 700;
-  letter-spacing: 0.08em;
-  padding: 2.5px 7px;
+  letter-spacing: 0.06em;
+  padding: 2px 7px;
   border-radius: 4px;
+  text-transform: uppercase;
 }
 
 .ec-current-page-title {
-  color: var(--ec-text);
-  font-size: 0.95rem;
-  font-weight: 700;
+  color: #111827;
+  font-size: 0.92rem;
+  font-weight: 600;
 }
 
 .ec-page-intro {
@@ -393,11 +396,13 @@
 
   padding: 24px;
 
-  border: 1px solid var(--ec-border);
+  border: 1px solid #E5E7EB;
 
   border-radius: 14px;
 
-  background: var(--ec-surface);
+  background: #FFFFFF;
+
+  box-shadow: 0 1px 3px rgba(0,0,0,0.04);
 
 }
 
@@ -405,7 +410,7 @@
 
   margin-top: 0;
 
-  color: var(--ec-text);
+  color: #111827;
 
 }
 
@@ -413,7 +418,7 @@
 
 .ec-muted {
 
-  color: var(--ec-muted);
+  color: #6B7280;
 
   line-height: 1.7;
 
@@ -423,7 +428,7 @@
 
   margin-bottom: 12px;
 
-  color: var(--ec-accent);
+  color: #DC2626;
 
   font-size: 2rem;
 
@@ -451,13 +456,13 @@
 
   .ec-app-shell {
 
-    grid-template-columns: 215px minmax(0, 1fr);
+    grid-template-columns: 200px minmax(0, 1fr);
 
   }
 
   .ec-sidebar {
 
-    width: 215px;
+    width: 200px;
 
   }
 
