@@ -309,7 +309,7 @@
   display: grid;
   grid-template-columns: repeat(6, minmax(0, 1fr));
   gap: 12px;
-  padding: 18px 24px 0;
+  padding: 16px 24px 0;
   box-sizing: border-box;
 }
 
@@ -611,11 +611,11 @@
 
 .ov-analytics-table th {
   padding: 8px 12px;
-  background: #F9FAFB;
-  color: #6B7280;
+  background: var(--bg-table-header, #F9FAFB);
+  color: var(--text-secondary, #6B7280);
   font-size: 0.675rem;
   font-weight: 600;
-  border-bottom: 1px solid #E5E7EB;
+  border-bottom: 1px solid var(--border, #E5E7EB);
   white-space: nowrap;
 }
 
@@ -1299,6 +1299,7 @@
 }
 
 :root[data-theme="dark"] .ov-analytics-table th {
+  background: var(--bg-table-header, rgba(17, 24, 39, 0.95));
   color: #94A3B8;
   border-bottom-color: rgba(255, 255, 255, 0.1);
 }
@@ -1372,6 +1373,22 @@
 
 :root[data-theme="dark"] .ov-portfolio-left {
   border-right-color: rgba(255, 255, 255, 0.08);
+}
+
+:root[data-theme="dark"] .ov-port-big-val {
+  color: #F8FAFC;
+}
+
+:root[data-theme="dark"] .ov-port-label {
+  color: #94A3B8;
+}
+
+:root[data-theme="dark"] .ov-port-sub-val.muted {
+  color: #94A3B8;
+}
+
+:root[data-theme="dark"] .ov-kpi-subtitle {
+  color: #94A3B8;
 }
 
 :root[data-theme="dark"] .ov-price-total-val {
