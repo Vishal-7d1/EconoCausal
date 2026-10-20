@@ -1,6 +1,19 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import {
+  LayoutDashboard,
+  Package,
+  Sliders,
+  Target,
+  Boxes,
+  Sparkles,
+  BarChart3,
+  Settings,
+  Store,
+  ChevronDown,
+} from 'lucide-react';
 
 import PlotlyChart from './components/PlotlyChart';
+import DashboardOverview from './components/DashboardOverview';
 
 import './App.css';
 import './NavigationShell.css';
@@ -102,13 +115,14 @@ function csvEscape(value) {
 }
 
 const navigationItems = [
-  { id: 'overview', label: 'Overview', icon: '◫' },
-  { id: 'dataset', label: 'Dataset Explorer', icon: '▤' },
-  { id: 'insights', label: 'Causal Insights', icon: '◈' },
-  { id: 'simulator', label: 'Budget Simulator', icon: '⚙' },
-  { id: 'recommendations', label: 'Recommendations', icon: '♙' },
-  { id: 'validation', label: 'Causal Validation & PSM', icon: '⚖' },
-  { id: 'methodology', label: 'Methodology', icon: 'ⓘ' },
+  { id: 'overview', label: 'Dashboard', icon: <LayoutDashboard size={18} /> },
+  { id: 'dataset', label: 'Products', icon: <Package size={18} /> },
+  { id: 'simulator', label: 'Pricing Rules', icon: <Sliders size={18} /> },
+  { id: 'competitors', label: 'Competitors', icon: <Target size={18} /> },
+  { id: 'insights', label: 'Inventory', icon: <Boxes size={18} /> },
+  { id: 'recommendations', label: 'Recommendations', icon: <Sparkles size={18} /> },
+  { id: 'validation', label: 'Reports', icon: <BarChart3 size={18} /> },
+  { id: 'methodology', label: 'Settings', icon: <Settings size={18} /> },
 ];
 
 export default function App() {
