@@ -63,6 +63,9 @@
   --transition-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
   --transition-normal: 250ms cubic-bezier(0.4, 0, 0.2, 1);
   --transition-slow: 400ms cubic-bezier(0.4, 0, 0.2, 1);
+
+  /* Surface utility tokens */
+  --surface-sunken: rgba(5, 8, 18, 0.6);
 }
 
 /* Light Mode: Elegant Eye-Soothing Slate, Refined Accents, Ambient Glow */
@@ -102,6 +105,9 @@
   --color-rose-glow: rgba(225, 29, 72, 0.12);
   --color-indigo: #4F46E5;
 
+  /* Surface utility tokens for Light Mode */
+  --surface-sunken: rgba(241, 245, 249, 0.9);
+
   /* Shadows for Light Mode: Refined & Layered */
   --shadow-card: 0 1px 3px 0 rgba(15, 23, 42, 0.03), 0 4px 14px -3px rgba(15, 23, 42, 0.04);
   --shadow-dropdown: 0 10px 25px -5px rgba(15, 23, 42, 0.08), 0 8px 10px -6px rgba(15, 23, 42, 0.03);
@@ -129,7 +135,8 @@ html {
   transition: background-color var(--transition-normal), color var(--transition-normal);
 }
 
-html[data-theme="light"] {
+html[data-theme="light"],
+:root[data-theme="light"] {
   color-scheme: light;
 }
 
