@@ -316,46 +316,6 @@ export default function App() {
     setDatasetLoadError('');
   };
 
-  const handleDatasetUpload = async (event) => {
-    const file = event.target.files?.[0];
-    event.target.value = '';
-    if (!file) return;
-
-    if (!file.name.toLowerCase().endsWith('.csv')) {
-      setDatasetLoadError('Please choose a .csv file. Excel files must be exported as CSV first.');
-      return;
-    }
-
-    if (file.size > 50 * 1024 * 1024) {
-      setDatasetLoadError('This file exceeds the 50 MB browser upload limit for this explorer.');
-      return;
-    }
-
-    setDatasetLoadError('');
-    try {
-      const text = await file.text();
-      const parsed = parseCsvText(text);
-      const dataset = {
-        fileName: file.name,
-        fileSize: file.size,
-        loadedAt: new Date().toLocaleString(),
-        headers: parsed.headers,
-        rows: parsed.rows,
-      };
-
-      if (activeDatasetType === 'pricing') {
-        setPricingDataset(dataset);
-      } else {
-        setGroundTruthDataset(dataset);
-      }
-      setDatasetSearch('');
-      setDatasetColumnFilter('');
-      setDatasetColumnSearch('');
-      setDatasetPage(1);
-    } catch (uploadError) {
-      setDatasetLoadError(uploadError.message || 'Unable to read this CSV file. Check its format and try again.');
-    }
-  };
 
   const handleExportFilteredDataset = () => {
     if (!activeDataset) return;
