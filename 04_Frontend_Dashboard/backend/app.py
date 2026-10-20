@@ -499,6 +499,91 @@ def get_chart_data() -> Dict[str, Any]:
         "outperformance_at_50pct": outperf,
     }
 
+    # 6. Dynamic Pricing Benchmark Analytics (Catalog, Margins, Floor, Rules, Price Points)
+    dynamic_pricing = {
+        "kpis": {
+            "total_products": 24812,
+            "total_products_change": "+4.5% vs last 30 days",
+            "average_margin": 28.6,
+            "average_margin_change": "+0.8 pp vs last 30 days",
+            "margin_floor_coverage": 99.2,
+            "margin_floor_coverage_change": "+0.3 pp vs last 30 days",
+            "skus_above_floor": 24611,
+            "skus_above_floor_change": "+4.2% vs last 30 days",
+            "skus_below_floor": 201,
+            "skus_below_floor_change": "-12.6% vs last 30 days",
+            "pricing_zones": 18,
+            "pricing_zones_change": "— vs last 30 days",
+            "sparks": {
+                "total_products": [23200, 23600, 24100, 23900, 24500, 24812],
+                "average_margin": [27.2, 27.5, 28.0, 27.9, 28.4, 28.6],
+                "margin_floor_coverage": [98.5, 98.8, 98.9, 99.0, 99.1, 99.2],
+                "skus_above_floor": [23000, 23400, 23800, 23900, 24200, 24611],
+                "skus_below_floor": [260, 245, 230, 220, 215, 201],
+                "pricing_zones": [18, 18, 18, 18, 18, 18],
+            }
+        },
+        "margin_distribution": {
+            "total_evaluated": 24812,
+            "bands": [
+                {"label": "Above 30%", "count": 8942, "pct": 36.0, "color": "#159447"},
+                {"label": "20% - 30%", "count": 9876, "pct": 39.8, "color": "#48BB78"},
+                {"label": "10% - 20%", "count": 4215, "pct": 17.0, "color": "#F4AD24"},
+                {"label": "5% - 10%", "count": 1289, "pct": 5.2, "color": "#ED8936"},
+                {"label": "Below 5%", "count": 490, "pct": 2.0, "color": "#D9253D"},
+            ]
+        },
+        "category_pricing": [
+            {"category": "Beverages", "products": 3842, "avg_margin": 27.4, "margin_floor": 15.0, "progress": 100},
+            {"category": "Snacks", "products": 2941, "avg_margin": 29.1, "margin_floor": 18.0, "progress": 100},
+            {"category": "Personal Care", "products": 4215, "avg_margin": 28.8, "margin_floor": 20.0, "progress": 100},
+            {"category": "Household", "products": 3621, "avg_margin": 25.6, "margin_floor": 18.0, "progress": 100},
+            {"category": "Dairy", "products": 2876, "avg_margin": 26.3, "margin_floor": 16.0, "progress": 100},
+            {"category": "Others", "products": 7317, "avg_margin": 29.8, "margin_floor": 15.0, "progress": 100},
+        ],
+        "margin_floor_overview": {
+            "pct_above_floor": 99.2,
+            "products_above_floor": 24611,
+            "pct_above_floor_formatted": "99.2%",
+            "products_at_floor": 156,
+            "pct_at_floor_formatted": "0.6%",
+            "products_below_floor": 45,
+            "pct_below_floor_formatted": "0.2%",
+        },
+        "pricing_rules_library": [
+            {"name": "Minimum Margin Rule", "type": "Margin", "description": "Ensure margin never below minimum", "status": "Active", "products": 24812, "last_updated": "May 31, 2024"},
+            {"name": "Competitor Alignment Rule", "type": "Competitor", "description": "Stay within competitor price range", "status": "Active", "products": 18732, "last_updated": "May 31, 2024"},
+            {"name": "Price Band Rule", "type": "Range", "description": "Keep prices within defined bands", "status": "Active", "products": 24812, "last_updated": "May 30, 2024"},
+            {"name": "MAP (Minimum Advertised Price)", "type": "Compliance", "description": "Enforce minimum advertised price", "status": "Active", "products": 7621, "last_updated": "May 30, 2024"},
+            {"name": "Regional Pricing Rule", "type": "Region", "description": "Adjust prices by region", "status": "Active", "products": 24812, "last_updated": "May 29, 2024"},
+            {"name": "Bundle Pricing Rule", "type": "Bundle", "description": "Manage bundle and package pricing", "status": "Active", "products": 3214, "last_updated": "May 29, 2024"},
+            {"name": "Clearance Rule", "type": "Lifecycle", "description": "Define markdown boundaries", "status": "Paused", "products": 1842, "last_updated": "May 28, 2024"},
+            {"name": "New Product Rule", "type": "New Product", "description": "Set initial pricing for new items", "status": "Paused", "products": 1256, "last_updated": "May 28, 2024"},
+        ],
+        "product_portfolio": {
+            "total_products": 24812,
+            "active_products": 23984,
+            "active_pct": 96.7,
+            "inactive_products": 828,
+            "inactive_pct": 3.3,
+            "price_points": [
+                {"range": "< $10", "count": 2214},
+                {"range": "$10 - $50", "count": 5621},
+                {"range": "$50 - $100", "count": 7842},
+                {"range": "$100 - $500", "count": 5123},
+                {"range": "$500+", "count": 3012},
+            ]
+        },
+        "cohort_actuals": {
+            "total_records": len(df),
+            "total_targeted": int((df["recommended_discount_inr"] > 0).sum()),
+            "total_control": int((df["recommended_discount_inr"] == 0).sum()),
+            "targeted_pct": round(float((df["recommended_discount_inr"] > 0).sum() / len(df) * 100), 2),
+            "incremental_profit_inr": float(summary.get("optimal_policy", {}).get("estimated_incremental_profit_inr", 376115.07)),
+            "rods": float(summary.get("optimal_policy", {}).get("return_on_discount_spend", 7.52)),
+        }
+    }
+
     return {
         "discount_distribution": discount_distribution,
         "policy_comparison": policy_comparison,
@@ -506,6 +591,7 @@ def get_chart_data() -> Dict[str, Any]:
         "loyalty_analysis": loyalty_analysis,
         "profit_by_discount": profit_by_discount,
         "qini_curve": qini_curve,
+        "dynamic_pricing": dynamic_pricing,
     }
 
 
