@@ -468,6 +468,10 @@
   transition: border-color var(--transition-fast);
 }
 .select-control:focus { border-color: var(--color-primary); outline: none; }
+.select-control option {
+  background: var(--bg-card);
+  color: var(--text-primary);
+}
 
 /* ── Pagination ── */
 .pagination-footer {
@@ -731,6 +735,34 @@
 }
 .method-assumption-card h4 { font-size: 0.875rem; font-weight: 700; color: var(--text-primary); margin-bottom: 4px; }
 .method-assumption-card p { font-size: 0.78rem; color: var(--text-secondary); line-height: 1.55; margin: 0; }
+
+.methodology-item {
+  padding: 14px 18px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  border-left: 3px solid var(--color-primary);
+}
+.methodology-item h4 {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0 0 6px 0;
+}
+.methodology-item p {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  line-height: 1.55;
+  margin: 0;
+}
+.methodology-item code {
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  background: var(--surface-sunken);
+  padding: 2px 6px;
+  border-radius: 4px;
+  color: var(--color-primary);
+}
 
 /* ── Misc Helpers ── */
 .ec-dataset-empty-art { font-size: 3rem; color: var(--text-tertiary); }

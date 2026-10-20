@@ -313,9 +313,9 @@ export default function DashboardOverview({
         label: 'Total Customer Cohort',
         targetTab: 'dataset',
         value: fmt(totalCust),
-        sub: '10,000 evaluated records',
+        sub: `${fmt(totalCust)} evaluated records`,
         subType: 'up',
-        spark: sparks.total_products ?? [9600, 9750, 9820, 9900, 9950, 10000],
+        spark: sparks.total_products ?? [9600, 9750, 9820, 9900, 9950, totalCust],
       },
       {
         id: 'avg_margin',
@@ -323,9 +323,11 @@ export default function DashboardOverview({
         label: 'Incremental Revenue',
         targetTab: 'insights',
         value: `₹${fmt(incRev)}`,
-        sub: '↑ 18.2% causal uplift',
+        sub: opt?.avg_incremental_uplift_pct != null
+          ? `↑ ${Number(opt.avg_incremental_uplift_pct).toFixed(1)}% causal uplift`
+          : '↑ 18.2% causal uplift',
         subType: 'up',
-        spark: sparks.average_margin ?? [1100000, 1150000, 1220000, 1260000, 1290000, 1320269],
+        spark: sparks.average_margin ?? [1100000, 1150000, 1220000, 1260000, 1290000, incRev],
       },
       {
         id: 'margin_floor_cov',
@@ -335,7 +337,7 @@ export default function DashboardOverview({
         value: `${fmt(rods, 2)}x`,
         sub: '↑ +60% vs random baseline',
         subType: 'up',
-        spark: sparks.margin_floor_coverage ?? [4.7, 5.2, 6.1, 6.8, 7.2, 7.52],
+        spark: sparks.margin_floor_coverage ?? [4.7, 5.2, 6.1, 6.8, 7.2, rods],
       },
       {
         id: 'skus_above_floor',
@@ -343,9 +345,11 @@ export default function DashboardOverview({
         label: 'Incremental Purchases',
         targetTab: 'insights',
         value: `+${fmt(incOrders)}`,
-        sub: '↑ 18.17% conversion lift',
+        sub: opt?.avg_incremental_uplift_pct != null
+          ? `↑ ${Number(opt.avg_incremental_uplift_pct).toFixed(2)}% conversion lift`
+          : '↑ 18.17% conversion lift',
         subType: 'up',
-        spark: sparks.skus_above_floor ?? [680, 710, 750, 780, 810, 830],
+        spark: sparks.skus_above_floor ?? [680, 710, 750, 780, 810, incOrders],
       },
       {
         id: 'skus_below_floor',
@@ -353,9 +357,11 @@ export default function DashboardOverview({
         label: 'Discounted Customers',
         targetTab: 'recommendations',
         value: fmt(discCust),
-        sub: '45.7% targeted (₹10 / ₹20)',
+        sub: opt?.selected_pct != null
+          ? `${Number(opt.selected_pct).toFixed(1)}% targeted (₹10 / ₹20)`
+          : `${((discCust / (totalCust || 1)) * 100).toFixed(1)}% targeted (₹10 / ₹20)`,
         subType: 'neutral',
-        spark: sparks.skus_below_floor ?? [4100, 4250, 4380, 4450, 4520, 4568],
+        spark: sparks.skus_below_floor ?? [4100, 4250, 4380, 4450, 4520, discCust],
       },
       {
         id: 'pricing_zones',
@@ -372,6 +378,17 @@ export default function DashboardOverview({
 
   /* ── 2. Treatment Discount Distribution (Donut Chart) ──────────────────── */
   const marginBands = useMemo(() => {
+    if (opt?.count_control_0 != null && opt?.count_discount_10 != null) {
+      const c0 = opt.count_control_0;
+      const d10 = opt.count_discount_10;
+      const d20 = opt.count_discount_20 ?? 0;
+      const tot = c0 + d10 + d20 || 1;
+      return [
+        { label: 'Control (₹0 Organic)', count: c0, pct: (c0 / tot) * 100, color: '#64748B' },
+        { label: 'Moderate Discount (₹10)', count: d10, pct: (d10 / tot) * 100, color: '#159447' },
+        { label: 'Deep Discount (₹20)', count: d20, pct: (d20 / tot) * 100, color: '#D9253D' },
+      ];
+    }
     return (
       dyn?.discount_distribution?.bands ?? [
         { label: 'Control (₹0 Organic)', count: 5432, pct: 54.3, color: '#64748B' },
@@ -379,7 +396,7 @@ export default function DashboardOverview({
         { label: 'Deep Discount (₹20)', count: 432, pct: 4.3, color: '#D9253D' },
       ]
     );
-  }, [dyn]);
+  }, [dyn, opt]);
 
   /* ── 3. Customer Cohort & Demographic Elasticity Table ─────────────────── */
   const categoryPricingRows = useMemo(() => {
@@ -397,62 +414,80 @@ export default function DashboardOverview({
 
   /* ── 4. Margin Floor Overview Data ─────────────────────────────────────── */
   const floorOverview = useMemo(() => {
+    const totalCust = opt?.count_control_0 != null && opt?.total_discounted_customers != null
+      ? opt.count_control_0 + opt.total_discounted_customers
+      : 10000;
+    const targeted = opt?.total_discounted_customers ?? 4568;
+    const organic = opt?.count_control_0 ?? 5432;
+    const targetedPct = ((targeted / (totalCust || 1)) * 100).toFixed(1);
+    const organicPct = ((organic / (totalCust || 1)) * 100).toFixed(1);
+
     return (
       dyn?.margin_floor_overview ?? {
-        pct_above_floor: 99.2,
-        products_above_floor: 4568,
-        pct_above_floor_formatted: '99.2%',
-        products_at_floor: 5432,
-        pct_at_floor_formatted: '54.3% Organic',
+        pct_above_floor: 100.0,
+        products_above_floor: targeted,
+        pct_above_floor_formatted: `${targetedPct}%`,
+        products_at_floor: organic,
+        pct_at_floor_formatted: `${organicPct}% Organic`,
         products_below_floor: 0,
         pct_below_floor_formatted: '0.0%',
-        rods: '7.52x',
-        incremental_profit: '₹3,76,115',
-        allocated_budget: '₹50,000',
-        expected_redeemed: '₹28,511',
-        net_revenue: '₹13,20,269',
-        incremental_orders: '+830',
+        rods: `${fmt(opt?.return_on_discount_spend ?? 7.52, 2)}x`,
+        incremental_profit: `₹${fmt(opt?.estimated_incremental_profit_inr ?? 376115)}`,
+        allocated_budget: `₹${fmt(opt?.allocated_budget ?? 50000)}`,
+        expected_redeemed: `₹${fmt(opt?.expected_redeemed_cost ?? 28511)}`,
+        net_revenue: `₹${fmt(opt?.estimated_incremental_revenue_inr ?? 1320269)}`,
+        incremental_orders: `+${fmt(opt?.estimated_incremental_purchases ?? 830)}`,
       }
     );
-  }, [dyn]);
+  }, [dyn, opt]);
 
   /* ── 5. Pricing Rules Library Data ─────────────────────────────────────── */
   const pricingRules = useMemo(() => {
+    const totalCust = opt?.count_control_0 != null && opt?.total_discounted_customers != null
+      ? opt.count_control_0 + opt.total_discounted_customers
+      : 10000;
+    const discCust = opt?.total_discounted_customers ?? 4568;
     const base = dyn?.pricing_rules_library ?? [
-      { name: 'No Negative Margin Constraint', type: 'Economic Guard', description: 'Ensures discounted gross profit margin is strictly >= 15%', status: 'Active', products: 10000, last_updated: 'DML Certified' },
-      { name: 'Anti-Confounder Residualization', type: 'Double ML', description: 'Cross-fits Y and T residuals to eliminate loyalty confounding bias', status: 'Active', products: 10000, last_updated: '5-Fold Cross-Fit' },
-      { name: 'Budget Knapsack Capacity Cap', type: 'Optimization', description: 'Enforces hard ₹50,000 promotional budget limit', status: 'Active', products: 4568, last_updated: 'HiGHS MILP' },
-      { name: 'Single Offer Exclusivity', type: 'Allocation', description: 'Guarantees max 1 discount coupon per customer (no coupon stacking)', status: 'Active', products: 10000, last_updated: 'Simplex Bound' },
-      { name: 'Minimum Basket Qualification', type: 'Eligibility', description: 'Requires cart baseline value >= ₹150 for promotional coupon', status: 'Active', products: 9642, last_updated: 'Rule Active' },
-      { name: 'Placebo Refutation Test', type: 'Falsification', description: 'Validates zero causal effect on random placebo treatments', status: 'Active', products: 10000, last_updated: 'Passed (p=0.88)' },
-      { name: 'Covariate Balance Guard (|SMD| < 0.10)', type: 'PSM Balance', description: 'Strict standardized mean difference balance on confounders', status: 'Active', products: 10000, last_updated: 'Grade A+ (0.04)' },
-      { name: 'Inelastic Deadweight Loss Suppressor', type: 'CATE Policy', description: 'Suppresses discounts on high-income inelastic shoppers', status: 'Active', products: 2350, last_updated: 'Policy Active' },
+      { name: 'No Negative Margin Constraint', type: 'Economic Guard', description: 'Ensures discounted gross profit margin is strictly >= 15%', status: 'Active', products: totalCust, last_updated: 'DML Certified' },
+      { name: 'Anti-Confounder Residualization', type: 'Double ML', description: 'Cross-fits Y and T residuals to eliminate loyalty confounding bias', status: 'Active', products: totalCust, last_updated: '5-Fold Cross-Fit' },
+      { name: 'Budget Knapsack Capacity Cap', type: 'Optimization', description: 'Enforces hard ₹50,000 promotional budget limit', status: 'Active', products: discCust, last_updated: 'HiGHS MILP' },
+      { name: 'Single Offer Exclusivity', type: 'Allocation', description: 'Guarantees max 1 discount coupon per customer (no coupon stacking)', status: 'Active', products: totalCust, last_updated: 'Simplex Bound' },
+      { name: 'Minimum Basket Qualification', type: 'Eligibility', description: 'Requires cart baseline value >= ₹150 for promotional coupon', status: 'Active', products: Math.round(totalCust * 0.964), last_updated: 'Rule Active' },
+      { name: 'Placebo Refutation Test', type: 'Falsification', description: 'Validates zero causal effect on random placebo treatments', status: 'Active', products: totalCust, last_updated: 'Passed (p=0.88)' },
+      { name: 'Covariate Balance Guard (|SMD| < 0.10)', type: 'PSM Balance', description: 'Strict standardized mean difference balance on confounders', status: 'Active', products: totalCust, last_updated: 'Grade A+ (0.04)' },
+      { name: 'Inelastic Deadweight Loss Suppressor', type: 'CATE Policy', description: 'Suppresses discounts on high-income inelastic shoppers', status: 'Active', products: Math.round(totalCust * 0.235), last_updated: 'Policy Active' },
     ];
     return base.map((r) => ({
       ...r,
       status: ruleOverrides[r.name] ?? r.status,
     }));
-  }, [dyn, ruleOverrides]);
+  }, [dyn, opt, ruleOverrides]);
 
   /* ── 6. Product Portfolio Data ─────────────────────────────────────────── */
   const productPortfolio = useMemo(() => {
-    return (
-      dyn?.product_portfolio ?? {
-        total_products: 10000,
-        active_products: 4568,
-        active_pct: 45.7,
-        inactive_products: 5432,
-        inactive_pct: 54.3,
-        price_points: [
-          { range: '< ₹500', count: 1840 },
-          { range: '₹500 - ₹1k', count: 3120 },
-          { range: '₹1k - ₹2k', count: 3450 },
-          { range: '₹2k - ₹5k', count: 1210 },
-          { range: '₹5k+', count: 380 },
-        ],
-      }
-    );
-  }, [dyn]);
+    const totalCust = opt?.count_control_0 != null && opt?.total_discounted_customers != null
+      ? opt.count_control_0 + opt.total_discounted_customers
+      : 10000;
+    const activeProducts = opt?.total_discounted_customers ?? 4568;
+    const inactiveProducts = opt?.count_control_0 ?? 5432;
+    const activePct = ((activeProducts / (totalCust || 1)) * 100).toFixed(1);
+    const inactivePct = ((inactiveProducts / (totalCust || 1)) * 100).toFixed(1);
+
+    return {
+      total_products: totalCust,
+      active_products: activeProducts,
+      active_pct: activePct,
+      inactive_products: inactiveProducts,
+      inactive_pct: inactivePct,
+      price_points: dyn?.product_portfolio?.price_points ?? [
+        { range: '< ₹500', count: Math.round(totalCust * 0.184) },
+        { range: '₹500 - ₹1k', count: Math.round(totalCust * 0.312) },
+        { range: '₹1k - ₹2k', count: Math.round(totalCust * 0.345) },
+        { range: '₹2k - ₹5k', count: Math.round(totalCust * 0.121) },
+        { range: '₹5k+', count: Math.round(totalCust * 0.038) },
+      ],
+    };
+  }, [dyn, opt]);
 
   /* ── 7. Causal ML Charts (Qini & Uplift) for Causal Tab ────────────────── */
   const qiniChart = useMemo(() => {
