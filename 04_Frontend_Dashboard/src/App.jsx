@@ -608,10 +608,127 @@ export default function App() {
   }, [fetchDashboardData]);
 
   useEffect(() => {
-
     fetchRecommendations();
-
   }, [fetchRecommendations]);
+
+  // Initial dataset status and sample benchmark loader
+  useEffect(() => {
+    fetch('/api/dataset/status')
+      .then((res) => (res.ok ? res.json() : null))
+      .then((info) => {
+        if (info) setActiveDatasetMeta(info);
+      })
+      .catch(() => null);
+  }, []);
+
+  useEffect(() => {
+    if (!pricingDataset) {
+      handleQuickLoadBenchmark();
+    }
+  }, []);
+
+  // --------------------------------------------------------------------------
+  // Handle Dataset Upload & End-to-End Dynamic Pricing Synchronization
+  // --------------------------------------------------------------------------
+  const handleDatasetUpload = async (event) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (!file) return;
+
+    if (!file.name.toLowerCase().endsWith('.csv')) {
+      setDatasetLoadError('Please choose a .csv file. Excel files must be exported as CSV first.');
+      return;
+    }
+
+    if (file.size > 50 * 1024 * 1024) {
+      setDatasetLoadError('This file exceeds the 50 MB upload limit for this explorer.');
+      return;
+    }
+
+    setDatasetLoadError('');
+    setDatasetUploadSuccess('');
+    setIsUploadingDataset(true);
+
+    try {
+      // 1. Read & parse in browser for immediate local preview in Dataset Explorer
+      const text = await file.text();
+      const parsed = parseCsvText(text);
+      const dataset = {
+        fileName: file.name,
+        fileSize: file.size,
+        loadedAt: new Date().toLocaleString(),
+        headers: parsed.headers,
+        rows: parsed.rows,
+      };
+
+      if (activeDatasetType === 'pricing') {
+        setPricingDataset(dataset);
+      } else {
+        setGroundTruthDataset(dataset);
+      }
+      setDatasetSearch('');
+      setDatasetColumnFilter('');
+      setDatasetColumnSearch('');
+      setDatasetPage(1);
+
+      // 2. Synchronize to FastAPI backend to power all modules (Overview, Simulator, Recommendations, Charts)
+      const formData = new FormData();
+      formData.append('file', file);
+      const res = await fetch('/api/dataset/upload', {
+        method: 'POST',
+        body: formData,
+      });
+
+      const resData = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(resData.detail || 'Backend failed to process and optimize the uploaded CSV.');
+      }
+
+      setDatasetUploadSuccess(
+        resData.message || `Successfully loaded & synchronized '${file.name}' (${resData.active_dataset?.total_records?.toLocaleString() || '10,000'} customers) across all dashboard views!`
+      );
+      if (resData.active_dataset) {
+        setActiveDatasetMeta(resData.active_dataset);
+      }
+
+      // 3. Immediately refresh Dashboard Overview, Visual Charts, and Customer Recommendations
+      await Promise.all([
+        fetchDashboardData(),
+        fetchRecommendations(),
+      ]);
+    } catch (uploadError) {
+      console.error('Dataset upload error:', uploadError);
+      setDatasetLoadError(uploadError.message || 'Unable to process this CSV file. Check its format and try again.');
+    } finally {
+      setIsUploadingDataset(false);
+    }
+  };
+
+  const handleResetDataset = async () => {
+    setIsUploadingDataset(true);
+    setDatasetLoadError('');
+    setDatasetUploadSuccess('');
+    try {
+      const res = await fetch('/api/dataset/reset', { method: 'POST' });
+      if (!res.ok) {
+        const errJson = await res.json().catch(() => ({}));
+        throw new Error(errJson.detail || 'Failed to reset dataset on backend.');
+      }
+      const resData = await res.json();
+      setActiveDatasetMeta(resData.active_dataset);
+      setDatasetUploadSuccess('Successfully reset to default 10,000 customer benchmark dataset.');
+      setPricingDataset(null);
+      await Promise.all([
+        fetchDashboardData(),
+        fetchRecommendations(),
+      ]);
+      handleQuickLoadBenchmark();
+    } catch (err) {
+      setDatasetLoadError(err.message || 'Failed to reset dataset.');
+    } finally {
+      setIsUploadingDataset(false);
+    }
+  };
 
   // --------------------------------------------------------------------------
 
