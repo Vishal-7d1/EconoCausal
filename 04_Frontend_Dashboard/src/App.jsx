@@ -14,6 +14,7 @@ import {
 
 import PlotlyChart from './components/PlotlyChart';
 import DashboardOverview from './components/DashboardOverview';
+import TopNavbar from './components/TopNavbar';
 
 import './App.css';
 import './NavigationShell.css';
@@ -176,6 +177,9 @@ export default function App() {
   const [reportData, setReportData] = useState(null);
 
   const [activeTab, setActiveTab] = useState('overview');
+  const [topNavViewMode, setTopNavViewMode] = useState('pricing');
+  const [topNavRange, setTopNavRange] = useState('May 31, 2024 – May 31, 2024');
+  const [topNavCategory, setTopNavCategory] = useState('all');
 
   // Dataset Explorer state is entirely client-side; CSV contents are not sent to the API.
   const [activeDatasetType, setActiveDatasetType] = useState('pricing');
@@ -1322,76 +1326,29 @@ export default function App() {
       </aside>
 
       <main className="ec-main-area">
+        {/* Unified Top Navigation Bar across ALL workspace pages */}
+        <TopNavbar
+          activeTab={activeTab}
+          activeTabLabel={navigationItems.find((item) => item.id === activeTab)?.label ?? 'Dashboard'}
+          theme={theme}
+          onToggleTheme={toggleTheme}
+          activeViewMode={topNavViewMode}
+          onViewModeChange={setTopNavViewMode}
+          selectedRange={topNavRange}
+          onSelectRange={setTopNavRange}
+          activeCategoryFilter={topNavCategory}
+          onSelectCategoryFilter={setTopNavCategory}
+          onOpenMethodology={() => setShowMethodologyModal(true)}
+          onOpenReport={handleOpenReportModal}
+          onNavigate={(tab) => {
+            setActiveTab(tab);
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+            const mainArea = document.querySelector('.ec-main-area');
+            if (mainArea) mainArea.scrollTo({ top: 0, behavior: 'smooth' });
+          }}
+        />
+
         <div className="dashboard-container">
-
-          {activeTab !== 'overview' && (
-            <>
-              <header className="dashboard-header">
-                <div className="brand-section">
-                  <div className="brand-icon">📈</div>
-                  <div className="brand-titles">
-                    <h1>
-                      EconoCausal
-                      <span className="badge-tag primary">
-                        {navigationItems.find((item) => item.id === activeTab)?.label ?? 'Workspace'}
-                      </span>
-                    </h1>
-                    <p>Dynamic Pricing &amp; Causal Machine Learning Intelligence</p>
-                  </div>
-                </div>
-
-                <div className="header-actions">
-                  <div className="system-status">
-                    <span className="status-dot"></span>
-                    <span>API Online</span>
-                    <span style={{ color: 'var(--border-subtle)' }}>|</span>
-                    <span>EconML LinearDML</span>
-                    <span style={{ color: 'var(--border-subtle)' }}>|</span>
-                    <span>HiGHS MILP</span>
-                  </div>
-
-                  <button
-                    type="button"
-                    className="theme-toggle-btn"
-                    onClick={toggleTheme}
-                    title={theme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
-                    aria-label={theme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
-                  >
-                    <span className="theme-toggle-icon" aria-hidden="true">
-                      {theme === 'dark' ? '☀️' : '🌙'}
-                    </span>
-                    <span className="theme-toggle-label">
-                      {theme === 'dark' ? 'Light Mode' : 'Dark Mode'}
-                    </span>
-                  </button>
-
-                  <button
-                    className="btn btn-primary"
-                    onClick={handleOpenReportModal}
-                    title="View & Export Executive Causal Audit Report"
-                    style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', fontWeight: 600 }}
-                  >
-                    📄 Executive Report
-                  </button>
-
-                  <button
-                    className="btn btn-secondary"
-                    onClick={() => setShowMethodologyModal(true)}
-                    title="View Causal Assumptions & Methodology"
-                  >
-                    ℹ️ Methodology
-                  </button>
-                </div>
-              </header>
-
-              <div className="ec-current-page" aria-live="polite">
-                <span className="ec-current-page-label">CURRENT WORKSPACE</span>
-                <span className="ec-current-page-title">
-                  {navigationItems.find((item) => item.id === activeTab)?.label ?? 'Overview'}
-                </span>
-              </div>
-            </>
-          )}
 
           {activeTab === 'overview' && (
             <DashboardOverview
@@ -1399,6 +1356,9 @@ export default function App() {
               chartData={chartData}
               validationData={validationData}
               theme={theme}
+              activeViewMode={topNavViewMode}
+              categoryFilter={topNavCategory}
+              selectedRange={topNavRange}
               onOpenMethodology={() => setShowMethodologyModal(true)}
               onOpenReport={handleOpenReportModal}
               onNavigate={(tab) => {
@@ -1423,11 +1383,11 @@ export default function App() {
               </div>
 
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '14px', margin: '20px 0' }}>
-                <div className="validation-card" style={{ padding: '16px', background: '#FFFFFF', border: '1px solid #E5E7EB', borderRadius: '12px' }}>
+                <div className="validation-card" style={{ padding: '16px', background: 'var(--bg-card, #FFFFFF)', border: '1px solid var(--border, #E5E7EB)', borderRadius: '12px' }}>
                   <div style={{ fontSize: '0.72rem', fontWeight: 700, color: '#D9253D', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                     CAUSAL OPTIMAL POLICY
                   </div>
-                  <h3 style={{ fontSize: '1.15rem', margin: '6px 0 2px', color: '#171923' }}>DML Causal Policy</h3>
+                  <h3 style={{ fontSize: '1.15rem', margin: '6px 0 2px', color: 'var(--text-primary, #171923)' }}>DML Causal Policy</h3>
                   <div style={{ fontSize: '1.6rem', fontWeight: 800, color: '#159447', letterSpacing: '-0.02em', margin: '6px 0' }}>
                     ₹{summaryData?.optimal_policy?.estimated_incremental_profit_inr?.toLocaleString('en-US', { maximumFractionDigits: 0 }) ?? '3,76,115'}
                   </div>
@@ -1437,12 +1397,12 @@ export default function App() {
                 </div>
 
                 {(summaryData?.baselines ?? []).map((b, i) => (
-                  <div key={i} className="validation-card" style={{ padding: '16px', background: '#FFFFFF', border: '1px solid #E5E7EB', borderRadius: '12px' }}>
+                  <div key={i} className="validation-card" style={{ padding: '16px', background: 'var(--bg-card, #FFFFFF)', border: '1px solid var(--border, #E5E7EB)', borderRadius: '12px' }}>
                     <div style={{ fontSize: '0.72rem', fontWeight: 700, color: '#6B7280', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                       COMPETITOR HEURISTIC #{i + 1}
                     </div>
-                    <h3 style={{ fontSize: '1.05rem', margin: '6px 0 2px', color: '#171923' }}>{b.policy_name}</h3>
-                    <div style={{ fontSize: '1.4rem', fontWeight: 700, color: '#171923', letterSpacing: '-0.02em', margin: '6px 0' }}>
+                    <h3 style={{ fontSize: '1.05rem', margin: '6px 0 2px', color: 'var(--text-primary, #171923)' }}>{b.policy_name}</h3>
+                    <div style={{ fontSize: '1.4rem', fontWeight: 700, color: 'var(--text-primary, #171923)', letterSpacing: '-0.02em', margin: '6px 0' }}>
                       ₹{b.estimated_incremental_profit_inr?.toLocaleString('en-US', { maximumFractionDigits: 0 })}
                     </div>
                     <div style={{ fontSize: '0.75rem', color: '#6B7280' }}>
@@ -1452,8 +1412,8 @@ export default function App() {
                 ))}
               </div>
 
-              <div className="validation-card" style={{ padding: '18px', background: '#FFFFFF', border: '1px solid #E5E7EB', borderRadius: '12px', marginBottom: '24px' }}>
-                <h4 style={{ margin: '0 0 8px', fontSize: '0.925rem', color: '#171923' }}>Strategic Advantage Over Competitor Heuristics</h4>
+              <div className="validation-card" style={{ padding: '18px', background: 'var(--bg-card, #FFFFFF)', border: '1px solid var(--border, #E5E7EB)', borderRadius: '12px', marginBottom: '24px' }}>
+                <h4 style={{ margin: '0 0 8px', fontSize: '0.925rem', color: 'var(--text-primary, #171923)' }}>Strategic Advantage Over Competitor Heuristics</h4>
                 <p style={{ fontSize: '0.8rem', color: '#4B5563', lineHeight: 1.5, margin: 0 }}>
                   Standard competitor-matching rules and cart size heuristics indiscriminately discount shoppers who were already planning to purchase, resulting in deadweight loss.
                   EconoCausal’s Double Machine Learning isolates true heterogeneous treatment effects (τ̂ᵢ), generating <strong>+60% higher Return on Discount Spend</strong> (7.52x vs 4.70x) under identical budget boundaries.

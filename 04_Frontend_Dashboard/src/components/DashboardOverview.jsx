@@ -92,13 +92,19 @@ function ProgressIndicator({ value = 100, color = '#159447' }) {
 }
 
 /* ── Status Badge ────────────────────────────────────────────────────────── */
-function StatusBadge({ status }) {
+function StatusBadge({ status, onClick }) {
   const isPaused = String(status).toLowerCase() === 'paused';
   return (
-    <span className={`ov-status-pill ${isPaused ? 'paused' : 'active'}`}>
+    <button
+      type="button"
+      className={`ov-status-pill ${isPaused ? 'paused' : 'active'}`}
+      onClick={onClick}
+      title="Click to toggle rule status (Active / Paused)"
+      style={{ cursor: 'pointer', border: 'none' }}
+    >
       <span className="ov-status-dot-sm" />
       {status}
-    </span>
+    </button>
   );
 }
 
@@ -272,14 +278,17 @@ export default function DashboardOverview({
   onOpenMethodology,
   onOpenReport,
   onNavigate,
+  activeViewMode = 'pricing',
+  categoryFilter = 'all',
+  selectedRange = 'May 31, 2024 – May 31, 2024',
 }) {
-  const [activeViewMode, setActiveViewMode] = useState('pricing'); // 'pricing' | 'causal'
-  const [dateRangeMenuOpen, setDateRangeMenuOpen] = useState(false);
-  const [selectedRange, setSelectedRange] = useState('May 31, 2024 – May 31, 2024');
-  const [notificationsOpen, setNotificationsOpen] = useState(false);
-  const [profileMenuOpen, setProfileMenuOpen] = useState(false);
-  const [filterMenuOpen, setFilterMenuOpen] = useState(false);
-  const [categoryFilter, setCategoryFilter] = useState('all');
+  const [ruleOverrides, setRuleOverrides] = useState({});
+  const toggleRule = (ruleName) => {
+    setRuleOverrides((prev) => ({
+      ...prev,
+      [ruleName]: prev[ruleName] === 'Paused' ? 'Active' : (prev[ruleName] === 'Active' ? 'Paused' : 'Paused'),
+    }));
+  };
 
   const dyn = chartData?.dynamic_pricing;
   const opt = summaryData?.optimal_policy ?? {};
@@ -294,6 +303,7 @@ export default function DashboardOverview({
         id: 'total_products',
         icon: <Tag size={16} strokeWidth={2.2} />,
         label: 'Total Products',
+        targetTab: 'dataset',
         value: fmt(k.total_products ?? 24812),
         sub: k.total_products_change ?? '↑ 4.5% vs last 30 days',
         subType: 'up',
@@ -303,6 +313,7 @@ export default function DashboardOverview({
         id: 'avg_margin',
         icon: <Clock size={16} strokeWidth={2.2} />,
         label: 'Average Margin',
+        targetTab: 'simulator',
         value: `${k.average_margin ?? 28.6}%`,
         sub: k.average_margin_change ?? '↑ 0.8 pp vs last 30 days',
         subType: 'up',
@@ -312,6 +323,7 @@ export default function DashboardOverview({
         id: 'margin_floor_cov',
         icon: <Shield size={16} strokeWidth={2.2} />,
         label: 'Margin Floor Coverage',
+        targetTab: 'simulator',
         value: `${k.margin_floor_coverage ?? 99.2}%`,
         sub: k.margin_floor_coverage_change ?? '↑ 0.3 pp vs last 30 days',
         subType: 'up',
@@ -321,6 +333,7 @@ export default function DashboardOverview({
         id: 'skus_above_floor',
         icon: <TrendingUp size={16} strokeWidth={2.2} />,
         label: 'Skus Above Margin Floor',
+        targetTab: 'dataset',
         value: fmt(k.skus_above_floor ?? 24611),
         sub: k.skus_above_floor_change ?? '↑ 4.2% vs last 30 days',
         subType: 'up',
@@ -330,6 +343,7 @@ export default function DashboardOverview({
         id: 'skus_below_floor',
         icon: <TrendingDown size={16} strokeWidth={2.2} />,
         label: 'Skus Below Margin Floor',
+        targetTab: 'dataset',
         value: fmt(k.skus_below_floor ?? 201),
         sub: k.skus_below_floor_change ?? '↓ -12.6% vs last 30 days',
         subType: 'down',
@@ -339,6 +353,7 @@ export default function DashboardOverview({
         id: 'pricing_zones',
         icon: <Globe size={16} strokeWidth={2.2} />,
         label: 'Pricing Zones',
+        targetTab: 'simulator',
         value: fmt(k.pricing_zones ?? 18),
         sub: k.pricing_zones_change ?? '— vs last 30 days',
         subType: 'neutral',
@@ -472,217 +487,21 @@ export default function DashboardOverview({
       {/* ───────────────────────────────────────────────────────────────────
           TOP HEADER: Clean Enterprise SaaS Header
           ─────────────────────────────────────────────────────────────────── */}
-      <header className="ov-top-header">
-        <div className="ov-header-left">
-          <h1 className="ov-title">Dashboard</h1>
-          <div className="ov-breadcrumbs">
-            <span>EconoCausal</span>
-            <span className="ov-breadcrumb-sep">/</span>
-            <span className="ov-breadcrumb-curr">Dynamic Pricing</span>
-          </div>
-        </div>
-
-        <div className="ov-header-actions">
-          {/* View Mode Switcher Pill */}
-          <div className="ov-view-switcher" role="tablist" aria-label="Dashboard presentation view">
-            <button
-              type="button"
-              className={`ov-view-tab ${activeViewMode === 'pricing' ? 'active' : ''}`}
-              onClick={() => setActiveViewMode('pricing')}
-              title="Reference Dynamic Pricing Analytics"
-            >
-              Dynamic Pricing
-            </button>
-            <button
-              type="button"
-              className={`ov-view-tab ${activeViewMode === 'causal' ? 'active' : ''}`}
-              onClick={() => setActiveViewMode('causal')}
-              title="Causal DML Optimization & Qini Curves"
-            >
-              Causal DML
-            </button>
-          </div>
-
-          {/* Date Range Selector Pill */}
-          <div className="ov-dropdown-anchor">
-            <button
-              type="button"
-              className="ov-header-pill"
-              onClick={() => setDateRangeMenuOpen(!dateRangeMenuOpen)}
-              aria-label="Select date range"
-              aria-expanded={dateRangeMenuOpen}
-            >
-              <Calendar size={14} className="ov-pill-icon" />
-              <span>{selectedRange}</span>
-              <ChevronDown size={13} className="ov-pill-chevron" />
-            </button>
-
-            {dateRangeMenuOpen && (
-              <div className="ov-popover-menu">
-                <div className="ov-popover-header">Active Evaluation Range</div>
-                <button
-                  type="button"
-                  className="ov-popover-item"
-                  onClick={() => {
-                    setSelectedRange('May 31, 2024 – May 31, 2024');
-                    setDateRangeMenuOpen(false);
-                  }}
-                >
-                  <CheckCircle2 size={13} color="#159447" />
-                  <span>Production Catalog (May 31, 2024)</span>
-                </button>
-                <button
-                  type="button"
-                  className="ov-popover-item"
-                  onClick={() => {
-                    setSelectedRange('Last 30 Days (Synthetic 10k)');
-                    setDateRangeMenuOpen(false);
-                  }}
-                >
-                  <span>Last 30 Days Cohort (N=10,000)</span>
-                </button>
-                <button
-                  type="button"
-                  className="ov-popover-item"
-                  onClick={() => {
-                    setSelectedRange('Quarter-to-Date (Q2 2024)');
-                    setDateRangeMenuOpen(false);
-                  }}
-                >
-                  <span>Quarter-to-Date (Q2 2024)</span>
-                </button>
-              </div>
-            )}
-          </div>
-
-          {/* Filters Button */}
-          <div className="ov-dropdown-anchor">
-            <button
-              type="button"
-              className={`ov-header-pill ${filterMenuOpen ? 'active' : ''}`}
-              onClick={() => setFilterMenuOpen(!filterMenuOpen)}
-              aria-label="Filter dashboard analytics"
-            >
-              <Filter size={14} className="ov-pill-icon" />
-              <span>Filters</span>
-            </button>
-
-            {filterMenuOpen && (
-              <div className="ov-popover-menu" style={{ width: 220 }}>
-                <div className="ov-popover-header">Filter by Category</div>
-                {['all', 'Beverages', 'Snacks', 'Personal Care', 'Household', 'Dairy'].map((cat) => (
-                  <button
-                    key={cat}
-                    type="button"
-                    className="ov-popover-item"
-                    onClick={() => {
-                      setCategoryFilter(cat);
-                      setFilterMenuOpen(false);
-                    }}
-                  >
-                    <span>{cat === 'all' ? 'All Categories (6)' : cat}</span>
-                    {categoryFilter === cat && <CheckCircle2 size={12} color="#D9253D" />}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* Notification Bell */}
-          <div className="ov-dropdown-anchor">
-            <button
-              type="button"
-              className="ov-icon-btn"
-              onClick={() => setNotificationsOpen(!notificationsOpen)}
-              title="System Alerts & Notifications"
-              aria-label="Notifications"
-            >
-              <Bell size={17} />
-              <span className="ov-badge-count">5</span>
-            </button>
-
-            {notificationsOpen && (
-              <div className="ov-popover-menu ov-notif-popover">
-                <div className="ov-popover-header">System Notifications (5)</div>
-                <div className="ov-notif-item">
-                  <div className="ov-notif-title">Causal Model Certified</div>
-                  <div className="ov-notif-desc">EconML LinearDML passed 100% of placebo & balance tests.</div>
-                </div>
-                <div className="ov-notif-item">
-                  <div className="ov-notif-title">Margin Floor Protected</div>
-                  <div className="ov-notif-desc">99.2% of product allocations respect the 28.0% margin boundary.</div>
-                </div>
-                <div className="ov-notif-item">
-                  <div className="ov-notif-title">18 Pricing Zones Active</div>
-                  <div className="ov-notif-desc">Regional micro-segments calibrated with zero parameter drift.</div>
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Help Question Icon */}
-          <button
-            type="button"
-            className="ov-icon-btn"
-            onClick={onOpenMethodology}
-            title="Methodology, Causal DAG & Assumptions"
-            aria-label="Help and Methodology"
-          >
-            <HelpCircle size={17} />
-          </button>
-
-          {/* User Profile Menu */}
-          <div className="ov-dropdown-anchor">
-            <button
-              type="button"
-              className="ov-user-profile-btn"
-              onClick={() => setProfileMenuOpen(!profileMenuOpen)}
-              aria-label="User profile menu"
-            >
-              <span className="ov-user-avatar">AD</span>
-              <span className="ov-user-name">Admin</span>
-              <ChevronDown size={13} className="ov-pill-chevron" />
-            </button>
-
-            {profileMenuOpen && (
-              <div className="ov-popover-menu" style={{ width: 200, right: 0 }}>
-                <div className="ov-popover-header">Admin Workspace</div>
-                <div style={{ padding: '8px 12px', fontSize: '0.74rem', color: '#6B7280' }}>
-                  Enterprise Plan • Acme Retail
-                </div>
-                <div className="ov-popover-divider" />
-                <button
-                  type="button"
-                  className="ov-popover-item"
-                  onClick={() => {
-                    setProfileMenuOpen(false);
-                    if (onNavigate) onNavigate('dataset');
-                  }}
-                >
-                  <span>Catalog Explorer</span>
-                </button>
-                <button
-                  type="button"
-                  className="ov-popover-item"
-                  onClick={() => {
-                    setProfileMenuOpen(false);
-                    if (onOpenReport) onOpenReport();
-                  }}
-                >
-                  <span>Executive Audit PDF</span>
-                </button>
-              </div>
-            )}
-          </div>
-        </div>
-      </header>
+      {/* Unified TopNavbar rendered globally in App.jsx */}
 
       {/* ───────────────────────────────────────────────────────────────────
           ROW 1: 6 KPI SUMMARY CARDS
           ─────────────────────────────────────────────────────────────────── */}
       <section className="ov-kpi-row" aria-label="Key Performance Indicators">
         {kpis.map((card) => (
-          <div key={card.id} className="ov-kpi-card" tabIndex={0}>
+          <div
+            key={card.id}
+            className="ov-kpi-card"
+            tabIndex={0}
+            onClick={() => card.targetTab && onNavigate && onNavigate(card.targetTab)}
+            title={`Click to explore ${card.label} in ${card.targetTab === 'dataset' ? 'Product Catalog' : 'Pricing Rules'}`}
+            style={{ cursor: 'pointer' }}
+          >
             <div className="ov-kpi-header">
               <div className="ov-kpi-icon-box">{card.icon}</div>
               <span className="ov-kpi-title">{card.label}</span>
@@ -880,7 +699,7 @@ export default function DashboardOverview({
                     <td className="ov-td-rule-type">{rule.type}</td>
                     <td className="ov-td-rule-desc">{rule.description}</td>
                     <td>
-                      <StatusBadge status={rule.status} />
+                      <StatusBadge status={rule.status} onClick={() => toggleRule(rule.name)} />
                     </td>
                     <td className="ov-td-num">{fmt(rule.products)}</td>
                     <td className="ov-td-date">{rule.last_updated}</td>
