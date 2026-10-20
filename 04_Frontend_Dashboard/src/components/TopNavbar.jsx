@@ -443,6 +443,7 @@ export default function TopNavbar({
               </button>
             </div>
           )}
+        </div>
       </div>
     </header>
   );

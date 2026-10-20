@@ -116,14 +116,13 @@ function csvEscape(value) {
 }
 
 const navigationItems = [
-  { id: 'overview', label: 'Dashboard', icon: <LayoutDashboard size={18} /> },
-  { id: 'dataset', label: 'Products', icon: <Package size={18} /> },
-  { id: 'simulator', label: 'Pricing Rules', icon: <Sliders size={18} /> },
-  { id: 'competitors', label: 'Competitors', icon: <Target size={18} /> },
-  { id: 'insights', label: 'Inventory', icon: <Boxes size={18} /> },
-  { id: 'recommendations', label: 'Recommendations', icon: <Sparkles size={18} /> },
-  { id: 'validation', label: 'Reports', icon: <BarChart3 size={18} /> },
-  { id: 'methodology', label: 'Settings', icon: <Settings size={18} /> },
+  { id: 'overview', label: 'Executive Dashboard', icon: <LayoutDashboard size={18} /> },
+  { id: 'dataset', label: 'Dataset Explorer', icon: <Package size={18} /> },
+  { id: 'insights', label: 'Causal Uplift & HTE', icon: <Sparkles size={18} /> },
+  { id: 'simulator', label: 'Budget Simulator', icon: <Sliders size={18} /> },
+  { id: 'recommendations', label: 'Customer Allocations', icon: <Target size={18} /> },
+  { id: 'validation', label: 'Causal Validation', icon: <BarChart3 size={18} /> },
+  { id: 'methodology', label: 'DML Methodology', icon: <Boxes size={18} /> },
 ];
 
 export default function App() {
@@ -1313,13 +1312,13 @@ export default function App() {
           ))}
         </nav>
 
-        <div className="ec-sidebar-store-card" title="Enterprise Pricing Plan">
+        <div className="ec-sidebar-store-card" title="Infotact Solutions — Data Associate L1">
           <div className="ec-store-icon-box">
             <Store size={15} />
           </div>
           <div className="ec-store-info">
-            <div className="ec-store-name">Acme Retail</div>
-            <div className="ec-store-plan">Enterprise Plan</div>
+            <div className="ec-store-name">Infotact Solutions</div>
+            <div className="ec-store-plan">DS &amp; ML Domain • L1 Intern</div>
           </div>
           <ChevronDown size={14} className="ec-store-chevron" />
         </div>
