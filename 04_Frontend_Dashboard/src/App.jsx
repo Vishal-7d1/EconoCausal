@@ -180,11 +180,14 @@ export default function App() {
   const [topNavRange, setTopNavRange] = useState('May 31, 2024 – May 31, 2024');
   const [topNavCategory, setTopNavCategory] = useState('all');
 
-  // Dataset Explorer state is entirely client-side; CSV contents are not sent to the API.
+  // Dataset Explorer & Active Optimization Dataset state
   const [activeDatasetType, setActiveDatasetType] = useState('pricing');
   const [pricingDataset, setPricingDataset] = useState(null);
   const [groundTruthDataset, setGroundTruthDataset] = useState(null);
   const [datasetLoadError, setDatasetLoadError] = useState('');
+  const [datasetUploadSuccess, setDatasetUploadSuccess] = useState('');
+  const [isUploadingDataset, setIsUploadingDataset] = useState(false);
+  const [activeDatasetMeta, setActiveDatasetMeta] = useState(null);
   const [datasetSearch, setDatasetSearch] = useState('');
   const [datasetColumnFilter, setDatasetColumnFilter] = useState('');
   const [datasetColumnSearch, setDatasetColumnSearch] = useState('');
