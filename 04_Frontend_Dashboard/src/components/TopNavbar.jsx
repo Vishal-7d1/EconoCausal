@@ -136,21 +136,8 @@ export default function TopNavbar({
 
   return (
     <header className="top-navbar" ref={navRef} aria-label="Workspace top navigation">
-      {/* ── Left: Title & Breadcrumb ── */}
+      {/* ── Left: View Mode Switcher (Dynamic Pricing | Causal DML on Dashboard) ── */}
       <div className="top-navbar-left">
-        <h1 className="top-navbar-title">{activeTabLabel}</h1>
-        <nav className="top-navbar-breadcrumbs" aria-label="Breadcrumb">
-          <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>EconoCausal</span>
-          <span className="top-navbar-sep">/</span>
-          <span>Dynamic Pricing via DML</span>
-          <span className="top-navbar-sep">/</span>
-          <span className="top-navbar-curr">{activeTabLabel}</span>
-        </nav>
-      </div>
-
-      {/* ── Right: Controls, Filters, Toggles, Profile ── */}
-      <div className="top-navbar-right">
-        {/* View Mode Switcher (Active on Dashboard) */}
         {activeTab === 'overview' && onViewModeChange && (
           <div className="top-navbar-switcher" role="tablist" aria-label="Dashboard presentation view">
             <button
@@ -171,6 +158,10 @@ export default function TopNavbar({
             </button>
           </div>
         )}
+      </div>
+
+      {/* ── Right: Controls, Filters, Toggles, Profile ── */}
+      <div className="top-navbar-right">
 
         {/* Date Range Selector Pill */}
         <div className="top-nav-dropdown-anchor">
