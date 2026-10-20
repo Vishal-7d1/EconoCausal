@@ -626,7 +626,7 @@
 }
 
 .ov-analytics-table tbody tr:hover td {
-  background: #F9FAFB;
+  background: var(--bg-hover, #F9FAFB);
 }
 
 .ov-analytics-table tbody tr:last-child td {
@@ -1308,8 +1308,18 @@
   border-bottom-color: rgba(255, 255, 255, 0.05);
 }
 
-:root[data-theme="dark"] .ov-analytics-table tbody tr:hover {
-  background: rgba(255, 255, 255, 0.03);
+:root[data-theme="dark"] .ov-analytics-table tbody tr:hover td {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+:root[data-theme="dark"] .ov-td-rule-name,
+:root[data-theme="dark"] .ov-td-category {
+  color: #F8FAFC;
+}
+
+:root[data-theme="dark"] .ov-analytics-table tbody tr:hover td.ov-td-rule-name,
+:root[data-theme="dark"] .ov-analytics-table tbody tr:hover td.ov-td-category {
+  color: #FFFFFF;
 }
 
 :root[data-theme="dark"] .ov-td-desc,

@@ -1419,8 +1419,6 @@ export default function App() {
           onSelectCategoryFilter={setTopNavCategory}
           onOpenMethodology={() => setShowMethodologyModal(true)}
           onOpenReport={handleOpenReportModal}
-          activeDatasetMeta={activeDatasetMeta}
-          onResetDataset={handleResetDataset}
           onNavigate={(tab) => {
             setActiveTab(tab);
             window.scrollTo({ top: 0, behavior: 'smooth' });

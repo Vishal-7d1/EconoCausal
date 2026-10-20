@@ -50,8 +50,6 @@ export default function TopNavbar({
   onOpenMethodology,
   onOpenReport,
   onNavigate,
-  activeDatasetMeta = null,
-  onResetDataset,
 }) {
   const [dateMenuOpen, setDateMenuOpen] = useState(false);
   const [filterMenuOpen, setFilterMenuOpen] = useState(false);
@@ -140,48 +138,7 @@ export default function TopNavbar({
     <header className="top-navbar" ref={navRef} aria-label="Workspace top navigation">
       {/* ── Left: Title & Breadcrumb ── */}
       <div className="top-navbar-left">
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <h1 className="top-navbar-title">{activeTabLabel}</h1>
-          {activeDatasetMeta?.is_custom && (
-            <div
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '6px',
-                padding: '2px 8px',
-                background: 'rgba(16, 185, 129, 0.12)',
-                border: '1px solid rgba(16, 185, 129, 0.3)',
-                borderRadius: '6px',
-                fontSize: '0.72rem',
-                color: '#10B981',
-                fontWeight: 600,
-              }}
-              title="Custom dataset active across all causal pricing calculations"
-            >
-              <span className="top-status-live-dot" style={{ background: '#10B981', width: 6, height: 6 }} />
-              <span>Custom: {activeDatasetMeta.filename} ({Number(activeDatasetMeta.total_records).toLocaleString()} rows)</span>
-              {onResetDataset && (
-                <button
-                  type="button"
-                  onClick={onResetDataset}
-                  style={{
-                    background: 'transparent',
-                    border: 'none',
-                    color: '#D9253D',
-                    cursor: 'pointer',
-                    fontWeight: 700,
-                    fontSize: '0.72rem',
-                    padding: '0 2px',
-                    marginLeft: '4px',
-                  }}
-                  title="Click to reset to default benchmark dataset"
-                >
-                  Reset
-                </button>
-              )}
-            </div>
-          )}
-        </div>
+        <h1 className="top-navbar-title">{activeTabLabel}</h1>
         <nav className="top-navbar-breadcrumbs" aria-label="Breadcrumb">
           <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>EconoCausal</span>
           <span className="top-navbar-sep">/</span>
