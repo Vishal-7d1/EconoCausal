@@ -118,21 +118,20 @@ export default function TopNavbar({
   const isDarkMode = theme === 'dark';
 
   const dateRangeOptions = [
-    { label: 'May 31, 2024 – May 31, 2024', desc: 'Current Production Catalog (24,812 SKUs)' },
-    { label: 'Last 7 Days (May 24 – May 31, 2024)', desc: 'Weekly Rolling Demand Matrix' },
-    { label: 'Last 30 Days (May 1 – May 31, 2024)', desc: 'Monthly Causal Uplift Baseline' },
-    { label: 'Quarter-to-Date (Q2 2024)', desc: 'Quarterly Price Elasticity Cycle' },
-    { label: 'Synthetic Benchmark Cohort (N=10,000)', desc: 'EconoCausal ML Research Cohort' },
+    { label: 'Active Evaluation Benchmark (N=10,000)', desc: 'Full DML Evaluated Customer Cohort' },
+    { label: 'Optimal Policy Allocations (N=4,568)', desc: 'Selected for ₹10 / ₹20 Promotional Discounts' },
+    { label: 'Organic Control Baseline (N=5,432)', desc: '₹0 Discount Non-Treated Customer Cohort' },
+    { label: 'High Price Elasticity Cohort (N=3,240)', desc: 'Low-Income Tier with CATE τ̂ ≥ 0.20' },
+    { label: 'Inelastic Organic Shoppers (N=2,350)', desc: 'High-Income Tier (Deadweight Loss Protection)' },
   ];
 
   const categoryOptions = [
-    { id: 'all', label: 'All Categories (6 Departments)' },
-    { id: 'Beverages', label: 'Beverages (3,842 products)' },
-    { id: 'Snacks', label: 'Snacks (2,941 products)' },
-    { id: 'Personal Care', label: 'Personal Care (4,215 products)' },
-    { id: 'Household', label: 'Household (3,621 products)' },
-    { id: 'Dairy', label: 'Dairy (2,876 products)' },
-    { id: 'Others', label: 'Others (7,317 products)' },
+    { id: 'all', label: 'All Customer Segments (N=10,000)' },
+    { id: 'Low Income', label: 'Low Income (< ₹35k) — High Elasticity' },
+    { id: 'Medium Income', label: 'Medium Income (₹35k-₹65k) — Moderate' },
+    { id: 'High Income', label: 'High Income (> ₹65k) — Inelastic' },
+    { id: 'Loyalty', label: 'Loyalty Club Members' },
+    { id: 'Dormant', label: 'Dormant / Inactive Shoppers' },
   ];
 
   return (
@@ -141,7 +140,9 @@ export default function TopNavbar({
       <div className="top-navbar-left">
         <h1 className="top-navbar-title">{activeTabLabel}</h1>
         <nav className="top-navbar-breadcrumbs" aria-label="Breadcrumb">
-          <span>EconoCausal</span>
+          <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>EconoCausal</span>
+          <span className="top-navbar-sep">/</span>
+          <span>Dynamic Pricing via DML</span>
           <span className="top-navbar-sep">/</span>
           <span className="top-navbar-curr">{activeTabLabel}</span>
         </nav>
@@ -156,7 +157,7 @@ export default function TopNavbar({
               type="button"
               className={`top-navbar-tab-btn ${activeViewMode === 'pricing' ? 'active' : ''}`}
               onClick={() => onViewModeChange('pricing')}
-              title="Reference Dynamic Pricing Analytics"
+              title="Dynamic Pricing Dashboard"
             >
               Dynamic Pricing
             </button>
@@ -182,7 +183,7 @@ export default function TopNavbar({
               setNotifMenuOpen(false);
               setProfileMenuOpen(false);
             }}
-            aria-label="Select evaluation date range"
+            aria-label="Select evaluation benchmark cohort"
             aria-expanded={dateMenuOpen}
           >
             <Calendar size={14} className="top-pill-icon" />
@@ -192,7 +193,7 @@ export default function TopNavbar({
 
           {dateMenuOpen && (
             <div className="top-popover-menu top-date-popover" role="menu">
-              <div className="top-popover-header">Active Evaluation Period</div>
+              <div className="top-popover-header">Active Evaluation Cohort</div>
               {dateRangeOptions.map((opt) => (
                 <button
                   key={opt.label}
@@ -228,11 +229,11 @@ export default function TopNavbar({
               setNotifMenuOpen(false);
               setProfileMenuOpen(false);
             }}
-            aria-label="Filter catalog and analytics"
+            aria-label="Filter customer segments and cohorts"
             aria-expanded={filterMenuOpen}
           >
             <Filter size={14} className="top-pill-icon" />
-            <span>Filters</span>
+            <span>Cohort Filters</span>
             {activeCategoryFilter !== 'all' && (
               <span className="top-filter-active-dot" title={`Filtered by ${activeCategoryFilter}`} />
             )}
@@ -241,7 +242,7 @@ export default function TopNavbar({
           {filterMenuOpen && (
             <div className="top-popover-menu top-filter-popover" role="menu">
               <div className="top-popover-header-row">
-                <span className="top-popover-header">Filter by Category</span>
+                <span className="top-popover-header">Filter by Customer Cohort</span>
                 {activeCategoryFilter !== 'all' && (
                   <button
                     type="button"
@@ -338,7 +339,7 @@ export default function TopNavbar({
           <HelpCircle size={17} />
         </button>
 
-        {/* ── DARK / LIGHT MODE TOGGLE BUTTON (Prominent & Always Available) ── */}
+        {/* ── DARK / LIGHT MODE TOGGLE BUTTON ── */}
         <button
           type="button"
           className={`top-navbar-icon-btn top-navbar-theme-btn ${isDarkMode ? 'dark-active' : ''}`}
@@ -364,21 +365,21 @@ export default function TopNavbar({
               setFilterMenuOpen(false);
               setNotifMenuOpen(false);
             }}
-            aria-label="User profile and settings menu"
+            aria-label="User profile and internship details"
           >
-            <span className="top-navbar-avatar">AD</span>
-            <span className="top-navbar-username">Admin</span>
+            <span className="top-navbar-avatar">VY</span>
+            <span className="top-navbar-username">Vishal Yadav</span>
             <ChevronDown size={13} className="top-pill-chevron" />
           </button>
 
           {profileMenuOpen && (
             <div className="top-popover-menu top-profile-popover" role="menu">
               <div className="top-profile-badge-row">
-                <div className="top-navbar-avatar large">AD</div>
+                <div className="top-navbar-avatar large">VY</div>
                 <div>
-                  <div className="top-profile-name">Administrator</div>
-                  <div className="top-profile-email">admin@econocausal.ai</div>
-                  <span className="top-profile-plan-pill">Enterprise Plan</span>
+                  <div className="top-profile-name">Vishal Yadav</div>
+                  <div className="top-profile-email">vyadav276203@gmail.com</div>
+                  <span className="top-profile-plan-pill">Data Associate L1 • Infotact</span>
                 </div>
               </div>
 
@@ -387,11 +388,19 @@ export default function TopNavbar({
               <div className="top-profile-status-block">
                 <div className="top-status-indicator">
                   <span className="top-status-live-dot" />
-                  <span>Causal Engine: EconML LinearDML</span>
+                  <span>Project: "EconoCausal"</span>
                 </div>
                 <div className="top-status-indicator">
                   <span className="top-status-live-dot" />
-                  <span>Optimizer: HiGHS MILP Solver</span>
+                  <span>Ref: ITS/DSML/1244 (Infotact Solutions)</span>
+                </div>
+                <div className="top-status-indicator">
+                  <span className="top-status-live-dot" />
+                  <span>Causal Model: EconML LinearDML</span>
+                </div>
+                <div className="top-status-indicator">
+                  <span className="top-status-live-dot" />
+                  <span>Optimizer: HiGHS MILP Knapsack Solver</span>
                 </div>
               </div>
 
@@ -417,7 +426,7 @@ export default function TopNavbar({
                   if (onOpenReport) onOpenReport();
                 }}
               >
-                <span>Export Audit PDF Report</span>
+                <span>Export Executive Project Report</span>
                 <FileText size={14} />
               </button>
 
@@ -429,12 +438,11 @@ export default function TopNavbar({
                   if (onNavigate) onNavigate('dataset');
                 }}
               >
-                <span>Product Catalog Explorer</span>
+                <span>Dataset Explorer (10,000 Cohort)</span>
                 <ExternalLink size={14} />
               </button>
             </div>
           )}
-        </div>
       </div>
     </header>
   );
