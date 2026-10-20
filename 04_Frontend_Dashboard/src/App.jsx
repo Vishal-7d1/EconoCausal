@@ -1419,6 +1419,8 @@ export default function App() {
           onSelectCategoryFilter={setTopNavCategory}
           onOpenMethodology={() => setShowMethodologyModal(true)}
           onOpenReport={handleOpenReportModal}
+          activeDatasetMeta={activeDatasetMeta}
+          onResetDataset={handleResetDataset}
           onNavigate={(tab) => {
             setActiveTab(tab);
             window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -1545,13 +1547,13 @@ export default function App() {
           </div>
 
           <div className={`ec-dataset-notice ${activeDatasetType === 'ground_truth' ? 'warning' : ''}`} role="note">
-            <span className="ec-dataset-notice-icon" aria-hidden="true">{activeDatasetType === 'ground_truth' ? '⚠' : '🔒'}</span>
+            <span className="ec-dataset-notice-icon" aria-hidden="true">{activeDatasetType === 'ground_truth' ? '⚠' : '⚡'}</span>
             <div>
-              <strong>{activeDatasetType === 'ground_truth' ? 'Evaluation-only data' : 'Local and isolated'}</strong>
+              <strong>{activeDatasetType === 'ground_truth' ? 'Evaluation-only Ground Truth Benchmark' : 'End-to-End Dynamic Pricing & DML Dataset Engine'}</strong>
               <p>
                 {activeDatasetType === 'ground_truth'
-                  ? 'Keep this file separate from training and recommendation generation. It is only inspected in this browser; this explorer does not send it to the backend.'
-                  : 'The selected CSV is parsed in your browser and is not uploaded to FastAPI. This explorer performs descriptive checks only; it does not retrain the model or change recommendations.'}
+                  ? 'Ground-truth counterfactuals are strictly isolated for econometric model auditing. Never exposed to online policy estimation.'
+                  : 'Uploading any customer pricing CSV or allocation CSV triggers real-time DML causal inference, estimates price elasticities (CATE), and re-optimizes discount allocations via HiGHS MILP Knapsack optimization. All dashboard views (Overview, Recommendations, CATE Uplift, and Simulator) immediately reflect your dataset!'}
               </p>
             </div>
           </div>
@@ -1560,8 +1562,8 @@ export default function App() {
             <div className="ec-dataset-upload-copy">
               <div className="ec-upload-icon" aria-hidden="true">↑</div>
               <div>
-                <h3>Load {activeDatasetType === 'pricing' ? 'pricing' : 'ground-truth'} CSV</h3>
-                <p>Choose a local .csv file (maximum 50 MB). Existing files can be replaced by selecting another file.</p>
+                <h3>Upload Customer Dataset or Pricing Allocations (.csv)</h3>
+                <p>Supports raw customer records (features, income, spend, loyalty) or pre-computed allocation policies. Maximum 50 MB.</p>
               </div>
             </div>
             <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}>
@@ -1569,22 +1571,53 @@ export default function App() {
                 type="button"
                 className="btn btn-primary"
                 onClick={handleQuickLoadBenchmark}
-                disabled={isLoadingSample}
+                disabled={isLoadingSample || isUploadingDataset}
                 style={{ fontWeight: 600, padding: '0.65rem 1.15rem' }}
               >
                 {isLoadingSample ? '⏳ Loading Benchmark...' : '⚡ Quick-Load Active 10k Dataset'}
               </button>
-              <label className="ec-upload-button">
-                <span aria-hidden="true">＋</span> Choose CSV file
-                <input type="file" accept=".csv,text/csv" onChange={handleDatasetUpload} />
+
+              <label className="ec-upload-button" style={{ opacity: isUploadingDataset ? 0.7 : 1, pointerEvents: isUploadingDataset ? 'none' : 'auto' }}>
+                <span aria-hidden="true">{isUploadingDataset ? '⏳' : '＋'}</span> {isUploadingDataset ? 'Uploading & Optimizing...' : 'Upload & Synchronize CSV'}
+                <input type="file" accept=".csv,text/csv" onChange={handleDatasetUpload} disabled={isUploadingDataset} />
               </label>
+
+              {activeDatasetMeta?.is_custom && (
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={handleResetDataset}
+                  disabled={isUploadingDataset}
+                  style={{ fontWeight: 600, padding: '0.65rem 1.15rem', color: '#D9253D', borderColor: 'rgba(217, 37, 61, 0.3)' }}
+                  title="Revert back to the reproducible 10k benchmark dataset"
+                >
+                  ↺ Reset to 10k Benchmark
+                </button>
+              )}
             </div>
+
+            {isUploadingDataset && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginTop: '12px', padding: '10px 14px', background: 'rgba(217, 37, 61, 0.08)', borderRadius: '8px', color: '#D9253D', fontSize: '0.825rem', fontWeight: 600 }}>
+                <span>⏳ Running EconML Double Machine Learning &amp; MILP Knapsack Optimizer on your uploaded dataset...</span>
+              </div>
+            )}
+
+            {datasetUploadSuccess && (
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '12px', padding: '10px 14px', background: 'rgba(21, 148, 71, 0.1)', border: '1px solid rgba(21, 148, 71, 0.25)', borderRadius: '8px', color: '#159447', fontSize: '0.825rem', fontWeight: 600 }}>
+                <span>✅ {datasetUploadSuccess}</span>
+                <button type="button" onClick={() => setDatasetUploadSuccess('')} style={{ background: 'transparent', border: 'none', color: '#159447', cursor: 'pointer', fontWeight: 700 }}>✕</button>
+              </div>
+            )}
+
             {activeDataset && (
               <div className="ec-file-meta" aria-live="polite">
                 <span className="ec-file-status-dot" aria-hidden="true" />
                 <span className="ec-file-name" title={activeDataset.fileName}>{activeDataset.fileName}</span>
                 <span>{(activeDataset.fileSize / 1024).toLocaleString('en-IN', { maximumFractionDigits: 1 })} KB</span>
                 <span>Loaded {activeDataset.loadedAt}</span>
+                {activeDatasetMeta?.is_custom && (
+                  <span style={{ color: '#10B981', fontWeight: 600, marginLeft: 6 }}>• Active Custom Dataset ({Number(activeDatasetMeta.total_records).toLocaleString()} customers)</span>
+                )}
               </div>
             )}
           </div>
