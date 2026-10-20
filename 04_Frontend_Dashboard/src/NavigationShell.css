@@ -165,7 +165,67 @@
   flex-shrink: 0;
 }
 
-/* ── Sidebar Footer ── */
+/* ── Sidebar Store / Workspace Card (matching reference screenshot) ── */
+.ec-sidebar-store-card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: auto 12px 14px;
+  padding: 8px 12px;
+  background: #F8F9FB;
+  border: 1px solid #E5E7EB;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all var(--transition-fast, 140ms ease);
+  flex-shrink: 0;
+}
+
+.ec-sidebar-store-card:hover {
+  background: #F1F3F8;
+  border-color: #D1D5DB;
+}
+
+.ec-store-icon-box {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  background: var(--color-primary, #D9253D);
+  color: #FFFFFF;
+  flex-shrink: 0;
+}
+
+.ec-store-info {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  flex: 1;
+  min-width: 0;
+}
+
+.ec-store-name {
+  font-size: 0.795rem;
+  font-weight: 700;
+  color: var(--text-primary, #171923);
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ec-store-plan {
+  font-size: 0.675rem;
+  color: var(--text-secondary, #6B7280);
+  line-height: 1.2;
+}
+
+.ec-store-chevron {
+  color: var(--text-tertiary, #9CA3AF);
+  flex-shrink: 0;
+}
+
+/* ── Sidebar Footer Fallback ── */
 .ec-sidebar-footer {
   display: flex;
   align-items: center;
