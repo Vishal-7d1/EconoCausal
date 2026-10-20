@@ -32,13 +32,8 @@ import {
   HelpCircle,
   ChevronDown,
   ChevronRight,
-  ExternalLink,
-  Sliders,
   CheckCircle2,
   Sparkles,
-  Layers,
-  ArrowUpRight,
-  ArrowDownRight,
 } from 'lucide-react';
 import PlotlyChart from './PlotlyChart';
 import './DashboardOverview.css';
@@ -115,17 +110,16 @@ function DonutChart({ bands = [], total = 24812, size = 180 }) {
   const strokeWidth = 20;
   const circumference = 2 * Math.PI * radius;
 
-  let accumulatedPct = 0;
-  const segments = bands.map((band) => {
+  // Precompute segment offsets immutably
+  const segments = bands.reduce((acc, band) => {
+    const prevOffset = acc.prevOffset;
     const strokeDasharray = `${(band.pct / 100) * circumference} ${circumference}`;
-    const strokeDashoffset = -((accumulatedPct / 100) * circumference);
-    accumulatedPct += band.pct;
+    const strokeDashoffset = -((prevOffset / 100) * circumference);
     return {
-      ...band,
-      strokeDasharray,
-      strokeDashoffset,
+      prevOffset: prevOffset + band.pct,
+      list: [...acc.list, { ...band, strokeDasharray, strokeDashoffset }],
     };
-  });
+  }, { prevOffset: 0, list: [] }).list;
 
   return (
     <div className="ov-donut-chart-container" style={{ width: size, height: size }}>
@@ -214,9 +208,6 @@ function SemiCircleGauge({ pct = 99.2, size = 200 }) {
 
 /* ── SVG Price Point Bar Chart ───────────────────────────────────────────── */
 function PricePointBarChart({ items = [], max = 8000 }) {
-  const chartHeight = 160;
-  const chartWidth = 280;
-  const barWidth = 26;
   const yTicks = [
     { label: '8K', val: 8000 },
     { label: '6K', val: 6000 },

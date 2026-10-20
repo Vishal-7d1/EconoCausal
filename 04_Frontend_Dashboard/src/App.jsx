@@ -1150,11 +1150,11 @@ export default function App() {
 
   const baselinePolicy = summaryData?.optimal_policy ?? {};
 
-  const activePolicy = simulationResult ?? baselinePolicy;
+  const _activePolicy = simulationResult ?? baselinePolicy;
 
   // Derive cohort size from backend policy counts instead of hardcoding it.
 
-  const cohortSize =
+  const _cohortSize =
 
     baselinePolicy.count_control_0 != null &&
 
