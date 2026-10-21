@@ -1,0 +1,9 @@
+{
+  "name": "econocausal-backend",
+  "version": "1.0.0",
+  "description": "FastAPI Backend service for EconoCausal Dashboard",
+  "scripts": {
+    "dev": "python app.py",
+    "start": "python app.py"
+  }
+}
