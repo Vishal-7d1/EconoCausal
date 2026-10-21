@@ -24,9 +24,22 @@ from typing import Any, Dict, List, Optional
 
 import numpy as np
 import pandas as pd
-from fastapi import FastAPI, HTTPException, Query, status, UploadFile, File
+from fastapi import FastAPI, HTTPException, Query, Request, status, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
+
+from dml_service import (
+    CausalDMLService,
+    SinglePredictionResult,
+    CATEBatchResponse,
+    CausalInferenceError,
+    ModelArtifactError,
+    FeatureValidationError,
+    DataLeakageError,
+    UnsupportedInferenceError,
+    PREVET_FEATURE_COLS,
+    PROHIBITED_COLUMNS,
+)
 
 # Ensure project root is in sys.path to access optimizer routines for simulation
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent
@@ -39,6 +52,7 @@ if str(REPO_ROOT / "03_Backend_Optimization") not in sys.path:
 OPTIMIZER_OUTPUT_DIR = REPO_ROOT / "03_Backend_Optimization" / "outputs"
 CLEANED_DATA_PATH = REPO_ROOT / "01_Dataset_Analysis" / "cleaned_pricing_data.csv"
 DML_PREDICTIONS_PATH = REPO_ROOT / "02_Causal_ML" / "outputs" / "dml_effect_predictions.csv"
+DML_MODEL_PATH = REPO_ROOT / "02_Causal_ML" / "outputs" / "dml_model.joblib"
 ALLOCATIONS_CSV = OPTIMIZER_OUTPUT_DIR / "optimal_discount_allocations.csv"
 SUMMARY_JSON = OPTIMIZER_OUTPUT_DIR / "optimization_summary.json"
 VALIDATION_SUMMARY_JSON = OPTIMIZER_OUTPUT_DIR / "causal_validation_summary.json"
@@ -47,10 +61,11 @@ FORBIDDEN_EVAL_FILE = REPO_ROOT / "01_Dataset_Analysis" / "ground_truth_eval.csv
 DOWHY_DAG_JSON = REPO_ROOT / "02_Causal_ML" / "outputs" / "dowhy_causal_graph.json"
 DRIFT_JSON = REPO_ROOT / "03_Backend_Optimization" / "outputs" / "drift_audit.json"
 
-# Global cache for customer allocations dataframe and metrics
+# Global cache for customer allocations dataframe, metrics, and CATE summary
 _allocations_df_cache: Optional[pd.DataFrame] = None
 _summary_json_cache: Optional[Dict[str, Any]] = None
 _validation_json_cache: Optional[Dict[str, Any]] = None
+_cate_summary_cache: Optional[Dict[str, Any]] = None
 _active_dataset_info: Dict[str, Any] = {
     "source": "default_benchmark",
     "filename": "optimal_discount_allocations.csv",
@@ -62,9 +77,10 @@ _active_dataset_info: Dict[str, Any] = {
 
 def reset_to_default_dataset() -> Dict[str, Any]:
     """Resets in-memory caches to original baseline artifacts."""
-    global _allocations_df_cache, _summary_json_cache, _active_dataset_info
+    global _allocations_df_cache, _summary_json_cache, _active_dataset_info, _cate_summary_cache
     _allocations_df_cache = None
     _summary_json_cache = None
+    _cate_summary_cache = None
     load_allocations_dataframe()
     load_summary_json()
     _active_dataset_info = {
@@ -228,6 +244,7 @@ def get_health() -> Dict[str, Any]:
             "validation_summary_exists": VALIDATION_SUMMARY_JSON.exists(),
             "cleaned_data_exists": CLEANED_DATA_PATH.exists(),
             "dml_predictions_exists": DML_PREDICTIONS_PATH.exists(),
+            "dml_model_exists": DML_MODEL_PATH.exists(),
         },
         "anti_leakage_verified": True,
         "active_dataset": get_dataset_status(),
@@ -770,6 +787,269 @@ def get_sample_dataset(limit: int = Query(10000, ge=10, le=10000, description="N
     }
 
 
+# -----------------------------------------------------------------------------
+# Causal CATE Models & Endpoints
+# -----------------------------------------------------------------------------
+class CATEStatMetrics(BaseModel):
+    count: int
+    mean: float
+    std: float
+    min: float
+    q25: float
+    median: float
+    q75: float
+    max: float
+
+
+class CATESegmentSummary(BaseModel):
+    segment_category: str
+    segment: str
+    count: int
+    mean_tau_hat_10: float
+    median_tau_hat_10: float
+    mean_tau_hat_20: float
+    median_tau_hat_20: float
+
+
+class CATESummaryResponse(BaseModel):
+    source: str
+    artifact_path: str
+    total_records: int
+    estimand: str = "incremental_purchase_conversion_uplift"
+    tau_hat_10: CATEStatMetrics
+    tau_hat_20: CATEStatMetrics
+    segments: List[CATESegmentSummary]
+    disclaimer: str = (
+        "Simulated CATE estimates from Double Machine Learning baseline. "
+        "Effects represent conversion probability differences, not direct monetary revenue."
+    )
+
+
+@app.get("/api/causal/cate", response_model=CATESummaryResponse)
+def get_cate_summary() -> CATESummaryResponse:
+    """
+    Returns summary statistics for the actual, verified CATE predictions.
+    Computes overall distributions (mean, std, quartiles, min, max) for tau_hat_10 and tau_hat_20,
+    along with segment-level summaries for income tiers, loyalty status, and device types.
+    """
+    global _cate_summary_cache
+    if _cate_summary_cache is not None:
+        return CATESummaryResponse(**_cate_summary_cache)
+
+    if not DML_PREDICTIONS_PATH.exists():
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"CATE predictions artifact not found at {DML_PREDICTIONS_PATH}",
+        )
+
+    try:
+        df_preds = pd.read_csv(DML_PREDICTIONS_PATH)
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to read CATE predictions artifact: {e}",
+        )
+
+    # Anti-leakage check: never expose ground-truth columns
+    leaked_cols = [c for c in df_preds.columns if c.startswith("true_")]
+    if leaked_cols:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Data leakage violation: ground-truth columns detected in predictions artifact: {leaked_cols}",
+        )
+
+    if "tau_hat_10" not in df_preds.columns or "tau_hat_20" not in df_preds.columns:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="CATE predictions artifact missing required columns 'tau_hat_10' and 'tau_hat_20'.",
+        )
+
+    # Validate numeric values
+    t10_vals = pd.to_numeric(df_preds["tau_hat_10"], errors="coerce").dropna().to_numpy()
+    t20_vals = pd.to_numeric(df_preds["tau_hat_20"], errors="coerce").dropna().to_numpy()
+
+    if len(t10_vals) == 0 or len(t20_vals) == 0 or not np.isfinite(t10_vals).all() or not np.isfinite(t20_vals).all():
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="CATE predictions artifact contains invalid or non-finite effect values.",
+        )
+
+    def calc_stats(vals: np.ndarray) -> Dict[str, Any]:
+        return {
+            "count": int(len(vals)),
+            "mean": float(round(float(np.mean(vals)), 6)),
+            "std": float(round(float(np.std(vals, ddof=1) if len(vals) > 1 else 0.0), 6)),
+            "min": float(round(float(np.min(vals)), 6)),
+            "q25": float(round(float(np.percentile(vals, 25)), 6)),
+            "median": float(round(float(np.median(vals)), 6)),
+            "q75": float(round(float(np.percentile(vals, 75)), 6)),
+            "max": float(round(float(np.max(vals)), 6)),
+        }
+
+    stats_10 = calc_stats(t10_vals)
+    stats_20 = calc_stats(t20_vals)
+
+    # Segment summaries: merge with cleaned pricing data if available
+    segment_summaries: List[Dict[str, Any]] = []
+    if CLEANED_DATA_PATH.exists():
+        try:
+            df_cov = pd.read_csv(CLEANED_DATA_PATH)
+            cov_cols = ["customer_id", "monthly_income_inr", "loyalty_member", "device_type"]
+            avail_cols = [c for c in cov_cols if c in df_cov.columns]
+            merged = pd.merge(
+                df_preds[["customer_id", "tau_hat_10", "tau_hat_20"]],
+                df_cov[avail_cols],
+                on="customer_id",
+                how="inner",
+            )
+
+            # 1. Income Tiers
+            if "monthly_income_inr" in merged.columns:
+                merged["income_tier"] = merged["monthly_income_inr"].apply(categorize_income_tier)
+                for tier in ["Low (< ₹35k)", "Medium (₹35k-₹65k)", "High (> ₹65k)"]:
+                    sub = merged[merged["income_tier"] == tier]
+                    if len(sub) > 0:
+                        segment_summaries.append({
+                            "segment_category": "Income Tier",
+                            "segment": tier,
+                            "count": int(len(sub)),
+                            "mean_tau_hat_10": float(round(float(sub["tau_hat_10"].mean()), 6)),
+                            "median_tau_hat_10": float(round(float(sub["tau_hat_10"].median()), 6)),
+                            "mean_tau_hat_20": float(round(float(sub["tau_hat_20"].mean()), 6)),
+                            "median_tau_hat_20": float(round(float(sub["tau_hat_20"].median()), 6)),
+                        })
+
+            # 2. Loyalty Status
+            if "loyalty_member" in merged.columns:
+                for loyal_val, loyal_name in [(1, "Loyalty Member"), (0, "Non-Loyal")]:
+                    sub = merged[merged["loyalty_member"] == loyal_val]
+                    if len(sub) > 0:
+                        segment_summaries.append({
+                            "segment_category": "Loyalty Status",
+                            "segment": loyal_name,
+                            "count": int(len(sub)),
+                            "mean_tau_hat_10": float(round(float(sub["tau_hat_10"].mean()), 6)),
+                            "median_tau_hat_10": float(round(float(sub["tau_hat_10"].median()), 6)),
+                            "mean_tau_hat_20": float(round(float(sub["tau_hat_20"].mean()), 6)),
+                            "median_tau_hat_20": float(round(float(sub["tau_hat_20"].median()), 6)),
+                        })
+
+            # 3. Device Type
+            if "device_type" in merged.columns:
+                for dev in ["Mobile", "Desktop", "Tablet"]:
+                    sub = merged[merged["device_type"] == dev]
+                    if len(sub) > 0:
+                        segment_summaries.append({
+                            "segment_category": "Device Type",
+                            "segment": dev,
+                            "count": int(len(sub)),
+                            "mean_tau_hat_10": float(round(float(sub["tau_hat_10"].mean()), 6)),
+                            "median_tau_hat_10": float(round(float(sub["tau_hat_10"].median()), 6)),
+                            "mean_tau_hat_20": float(round(float(sub["tau_hat_20"].mean()), 6)),
+                            "median_tau_hat_20": float(round(float(sub["tau_hat_20"].median()), 6)),
+                        })
+        except Exception as e:
+            pass
+
+    rel_path = (
+        str(DML_PREDICTIONS_PATH.relative_to(REPO_ROOT))
+        if DML_PREDICTIONS_PATH.is_relative_to(REPO_ROOT)
+        else str(DML_PREDICTIONS_PATH)
+    )
+
+    resp_data = {
+        "source": "saved_artifact",
+        "artifact_path": rel_path,
+        "total_records": len(df_preds),
+        "estimand": "incremental_purchase_conversion_uplift",
+        "tau_hat_10": stats_10,
+        "tau_hat_20": stats_20,
+        "segments": segment_summaries,
+        "disclaimer": (
+            "Simulated CATE estimates from Double Machine Learning baseline. "
+            "Effects represent conversion probability differences, not direct monetary revenue."
+        ),
+    }
+
+    _cate_summary_cache = resp_data
+    return CATESummaryResponse(**resp_data)
+
+
+@app.post("/api/causal/predict", response_model=CATEBatchResponse)
+async def predict_cate_endpoint(request: Request) -> CATEBatchResponse:
+    """
+    Predict Individual Treatment Effects (CATE) for single or batch customer feature records.
+
+    Accepts:
+    1. {"records": [...], "return_intervals": false}
+    2. [{...}, ...] (direct list of customer records)
+    3. {...} (single customer record)
+
+    Returns:
+    - tau_hat_10: Uplift of ₹10 discount vs ₹0
+    - tau_hat_20: Uplift of ₹20 discount vs ₹0
+    - 95% Confidence Intervals if return_intervals=True
+    """
+    try:
+        body = await request.json()
+    except Exception:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Malformed JSON in request body.",
+        )
+
+    if body is None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Empty request body.",
+        )
+
+    return_intervals = False
+    records: Any = None
+
+    if isinstance(body, dict):
+        if "records" in body:
+            records = body.get("records")
+            return_intervals = bool(body.get("return_intervals", False))
+        else:
+            records = [body]
+            return_intervals = False
+    elif isinstance(body, list):
+        records = body
+        return_intervals = False
+    else:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Request body must be a JSON object or array.",
+        )
+
+    if not isinstance(records, list) or len(records) == 0:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Prediction request cannot be empty. At least one customer feature record is required.",
+        )
+
+    try:
+        service = CausalDMLService.get_instance()
+        result = service.predict_cate(records, return_intervals=return_intervals)
+        return result
+    except DataLeakageError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+    except FeatureValidationError as e:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(e))
+    except ModelArtifactError as e:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+    except UnsupportedInferenceError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+    except CausalInferenceError as e:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Causal inference failed: {e}",
+        )
+
+
 @app.get("/api/dataset/status")
 def get_dataset_status() -> Dict[str, Any]:
     """Returns metadata regarding active dataset powering the dashboard."""
@@ -1072,40 +1352,46 @@ async def upload_custom_dataset(file: UploadFile = File(...)) -> Dict[str, Any]:
                 except Exception:
                     pass
 
-        # If still missing, check for trained EconML LinearDML model
+        # If still missing, run genuine CausalDMLService inference
         if "tau_hat_10" not in df.columns or df["tau_hat_10"].isna().any():
-            dml_model_path = REPO_ROOT / "02_Causal_ML" / "outputs" / "dml_model.joblib"
-            if dml_model_path.exists():
-                try:
-                    import joblib
-                    model = joblib.load(dml_model_path)
-                    feature_matrix = pd.DataFrame()
-                    feature_matrix["age"] = pd.to_numeric(df[cols_lower.get("age")], errors="coerce").fillna(35) if "age" in cols_lower else 35
-                    feature_matrix["monthly_income_inr"] = df["monthly_income_inr"]
-                    feature_matrix["web_visits_last_30d"] = pd.to_numeric(df[cols_lower.get("web_visits_last_30d")], errors="coerce").fillna(12) if "web_visits_last_30d" in cols_lower else 12
-                    feature_matrix["past_purchases_count"] = pd.to_numeric(df[cols_lower.get("past_purchases_count")], errors="coerce").fillna(4) if "past_purchases_count" in cols_lower else 4
-                    feature_matrix["days_since_last_purchase"] = pd.to_numeric(df[cols_lower.get("days_since_last_purchase")], errors="coerce").fillna(25) if "days_since_last_purchase" in cols_lower else 25
-                    feature_matrix["cart_baseline_value_inr"] = df["cart_baseline_value_inr"]
-                    feature_matrix["loyalty_member"] = df["loyalty_member"]
-                    feature_matrix["device_Mobile"] = pd.to_numeric(df[cols_lower.get("device_mobile")], errors="coerce").fillna(1) if "device_mobile" in cols_lower else 1
-                    feature_matrix["device_Tablet"] = pd.to_numeric(df[cols_lower.get("device_tablet")], errors="coerce").fillna(0) if "device_tablet" in cols_lower else 0
+            try:
+                # Prepare feature matrix for CausalDMLService
+                feature_matrix = pd.DataFrame()
+                feature_matrix["customer_id"] = df["customer_id"]
+                feature_matrix["age"] = pd.to_numeric(df[cols_lower.get("age")], errors="coerce").fillna(35) if "age" in cols_lower else 35
+                feature_matrix["monthly_income_inr"] = df["monthly_income_inr"]
+                feature_matrix["web_visits_last_30d"] = pd.to_numeric(df[cols_lower.get("web_visits_last_30d")], errors="coerce").fillna(12) if "web_visits_last_30d" in cols_lower else 12
+                feature_matrix["past_purchases_count"] = pd.to_numeric(df[cols_lower.get("past_purchases_count")], errors="coerce").fillna(4) if "past_purchases_count" in cols_lower else 4
+                feature_matrix["days_since_last_purchase"] = pd.to_numeric(df[cols_lower.get("days_since_last_purchase")], errors="coerce").fillna(25) if "days_since_last_purchase" in cols_lower else 25
+                feature_matrix["cart_baseline_value_inr"] = df["cart_baseline_value_inr"]
+                feature_matrix["loyalty_member"] = df["loyalty_member"]
 
-                    X_arr = feature_matrix.values
-                    t10 = model.effect(X_arr, T0=0, T1=10).flatten()
-                    t20 = model.effect(X_arr, T0=0, T1=20).flatten()
-                    df["tau_hat_10"] = np.round(np.clip(t10, 0.0, 0.6), 5)
-                    df["tau_hat_20"] = np.round(np.clip(t20, 0.0, 0.8), 5)
-                except Exception:
-                    pass
+                # Device features
+                if "device_mobile" in cols_lower and "device_tablet" in cols_lower:
+                    feature_matrix["device_Mobile"] = pd.to_numeric(df[cols_lower.get("device_mobile")], errors="coerce").fillna(0).astype(int)
+                    feature_matrix["device_Tablet"] = pd.to_numeric(df[cols_lower.get("device_tablet")], errors="coerce").fillna(0).astype(int)
+                elif "device_type" in cols_lower or "device" in cols_lower:
+                    dev_col = cols_lower.get("device_type", cols_lower.get("device"))
+                    feature_matrix["device_type"] = df[dev_col].astype(str)
+                else:
+                    feature_matrix["device_Mobile"] = 1
+                    feature_matrix["device_Tablet"] = 0
 
-        # Final fallback if neither predictions nor model provided
+                service = CausalDMLService.get_instance()
+                cate_batch = service.predict_cate(feature_matrix, return_intervals=False)
+                df["tau_hat_10"] = [p.tau_hat_10 for p in cate_batch.predictions]
+                df["tau_hat_20"] = [p.tau_hat_20 for p in cate_batch.predictions]
+            except Exception as e:
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail=f"Causal inference failed during dataset upload: {e}. Model inference is strictly required; heuristic fallbacks are not permitted.",
+                )
+
         if "tau_hat_10" not in df.columns or df["tau_hat_10"].isna().any():
-            income = df["monthly_income_inr"].values
-            cart = df["cart_baseline_value_inr"].values
-            t10_est = np.clip(0.12 + (income < 35000) * 0.06 - (cart > 500) * 0.03, 0.02, 0.40)
-            t20_est = np.clip(t10_est * 1.5, 0.04, 0.60)
-            df["tau_hat_10"] = df["tau_hat_10"].fillna(pd.Series(t10_est, index=df.index))
-            df["tau_hat_20"] = df["tau_hat_20"].fillna(pd.Series(t20_est, index=df.index))
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Causal inference failed: treatment effect predictions could not be generated.",
+            )
 
         # Baseline conversion probability model
         try:
