@@ -8,10 +8,12 @@ input validation, anti-leakage safeguards, and metric consistency.
 from __future__ import annotations
 
 import json
+import math
 import sys
 import unittest
 from pathlib import Path
 
+import numpy as np
 from fastapi.testclient import TestClient
 
 # Ensure backend directory is in sys.path
@@ -301,6 +303,49 @@ class TestDashboardAPI(unittest.TestCase):
         self.assertEqual(resp.status_code, 200)
         self.assertEqual(resp.headers.get("access-control-allow-origin"), origin)
         self.assertEqual(resp.headers.get("access-control-allow-credentials"), "true")
+
+    def test_18_causal_cate_summary_endpoint(self):
+        """Verify GET /api/causal/cate returns verified CATE distribution metrics and segments."""
+        resp = self.client.get("/api/causal/cate")
+        self.assertEqual(resp.status_code, 200)
+        data = resp.json()
+        self.assertEqual(data["source"], "saved_artifact")
+        self.assertEqual(data["total_records"], 10000)
+        self.assertIn("tau_hat_10", data)
+        self.assertIn("tau_hat_20", data)
+        self.assertGreater(data["tau_hat_10"]["mean"], 0.0)
+        self.assertGreater(data["tau_hat_20"]["mean"], 0.0)
+        self.assertGreaterEqual(len(data["segments"]), 5)
+
+    def test_19_causal_predict_endpoint(self):
+        """Verify POST /api/causal/predict generates genuine CATE predictions with 95% CIs."""
+        payload = {
+            "records": [
+                {
+                    "customer_id": "TEST_API_001",
+                    "age": 42.0,
+                    "monthly_income_inr": 62000.0,
+                    "web_visits_last_30d": 18.0,
+                    "past_purchases_count": 5.0,
+                    "days_since_last_purchase": 8.0,
+                    "cart_baseline_value_inr": 480.0,
+                    "loyalty_member": 1,
+                    "device_type": "Mobile",
+                }
+            ],
+            "return_intervals": True,
+        }
+        resp = self.client.post("/api/causal/predict", json=payload)
+        self.assertEqual(resp.status_code, 200)
+        data = resp.json()
+        self.assertEqual(data["total_records"], 1)
+        self.assertTrue(data["has_confidence_intervals"])
+        p = data["predictions"][0]
+        self.assertEqual(p["customer_id"], "TEST_API_001")
+        self.assertTrue(np.isfinite(p["tau_hat_10"]))
+        self.assertTrue(np.isfinite(p["tau_hat_20"]))
+        self.assertLessEqual(p["tau_hat_10_ci_95"][0], p["tau_hat_10_ci_95"][1])
+        self.assertLessEqual(p["tau_hat_20_ci_95"][0], p["tau_hat_20_ci_95"][1])
 
 
 if __name__ == "__main__":
