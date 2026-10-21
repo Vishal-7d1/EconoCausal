@@ -332,12 +332,12 @@ def get_recommendations(
 
     # 6. Pagination
     total_pages = max(1, math.ceil(filtered_count / page_size))
-    if page > total_pages and filtered_count > 0:
-        page = total_pages
-
-    start_idx = (page - 1) * page_size
-    end_idx = start_idx + page_size
-    page_df = df.iloc[start_idx:end_idx]
+    if page > total_pages:
+        page_df = df.iloc[0:0]
+    else:
+        start_idx = (page - 1) * page_size
+        end_idx = start_idx + page_size
+        page_df = df.iloc[start_idx:end_idx]
 
     items = [
         CustomerRecommendationItem(
@@ -734,7 +734,7 @@ def get_validation() -> Dict[str, Any]:
 
 
 @app.get("/api/dataset/sample")
-def get_sample_dataset(limit: int = Query(500, ge=10, le=10000, description="Number of sample rows to return")) -> Dict[str, Any]:
+def get_sample_dataset(limit: int = Query(10000, ge=10, le=10000, description="Number of sample rows to return")) -> Dict[str, Any]:
     """
     Safely provides observable pricing benchmark dataset records for UI explorer without file upload.
     Anti-leakage enforced: true_* columns are strictly blocked.
@@ -812,6 +812,11 @@ async def upload_custom_dataset(file: UploadFile = File(...)) -> Dict[str, Any]:
 
     try:
         content_bytes = await file.read()
+        if len(content_bytes) == 0:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="The uploaded CSV file is empty.",
+            )
         if len(content_bytes) > 50 * 1024 * 1024:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -843,15 +848,46 @@ async def upload_custom_dataset(file: UploadFile = File(...)) -> Dict[str, Any]:
             detail=f"Security violation: Ground truth evaluation columns detected in uploaded dataset: {leak_cols}. Causal models must strictly use model-estimated treatment effects.",
         )
 
-    # 2. Identify file format
+    # 2. Identify file format and audit data quality
     cols_lower = {str(c).lower().strip(): c for c in df_uploaded.columns}
+
+    # Data Quality Metrics
+    duplicate_rows = int(df_uploaded.duplicated().sum())
+    id_col_raw = cols_lower.get("customer_id", cols_lower.get("user_id", cols_lower.get("id")))
+    duplicate_ids = int(df_uploaded[id_col_raw].duplicated().sum()) if id_col_raw else 0
+    missing_cells = int(df_uploaded.isna().sum().sum())
+    data_quality_report = {
+        "total_records": len(df_uploaded),
+        "total_columns": len(df_uploaded.columns),
+        "missing_cells": missing_cells,
+        "duplicate_rows": duplicate_rows,
+        "duplicate_customer_ids": duplicate_ids,
+        "imputation_policy": "Numerical columns median-imputed, categoricals mode-imputed per project standard (01_Dataset_Analysis/data_cleaning.py)",
+    }
 
     # Check if this is an Allocations CSV
     has_rec = any(c in cols_lower for c in ["recommended_discount_inr", "discount_inr", "discount", "recommended_discount"])
     has_profit = any(c in cols_lower for c in ["expected_incremental_profit_inr", "profit_inr", "incremental_profit", "profit"])
     has_uplift = any(c in cols_lower for c in ["expected_incremental_purchase_uplift", "uplift", "tau_hat", "incremental_purchase_uplift"])
+    is_allocations = has_rec or (has_profit and has_uplift)
 
-    if has_rec or (has_profit and has_uplift):
+    # If not allocations, verify that recognizable customer pricing covariates exist
+    pricing_recon_cols = [
+        "cart_baseline_value_inr", "cart_value", "cart_baseline_value",
+        "monthly_income_inr", "income", "monthly_income",
+        "loyalty_member", "loyalty", "is_loyalty",
+        "discount_inr", "discount", "purchased", "observed_purchase",
+        "web_visits_last_30d", "age"
+    ]
+    has_pricing_recon = any(c in cols_lower for c in pricing_recon_cols)
+
+    if not is_allocations and not has_pricing_recon and "customer_id" not in cols_lower:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Uploaded CSV does not match the required EconoCausal pricing or allocations schema. Missing required features (e.g., 'cart_baseline_value_inr', 'monthly_income_inr', or 'recommended_discount_inr').",
+        )
+
+    if is_allocations:
         # Format 1: Allocations CSV
         df = df_uploaded.copy()
 
@@ -984,6 +1020,7 @@ async def upload_custom_dataset(file: UploadFile = File(...)) -> Dict[str, Any]:
             "total_records": total_customers,
             "is_custom": True,
             "last_updated": time.strftime("%Y-%m-%d %H:%M:%S UTC", time.gmtime()),
+            "data_quality": data_quality_report,
         }
 
     else:
@@ -1151,12 +1188,14 @@ async def upload_custom_dataset(file: UploadFile = File(...)) -> Dict[str, Any]:
             "total_records": len(df),
             "is_custom": True,
             "last_updated": time.strftime("%Y-%m-%d %H:%M:%S UTC", time.gmtime()),
+            "data_quality": data_quality_report,
         }
 
     return {
         "status": "success",
         "message": f"Successfully loaded and optimized dataset '{file.filename}' ({_active_dataset_info['total_records']:,} customers). All dashboard views (Overview, Customer Recommendations, Visual Insights) are now updated.",
         "active_dataset": _active_dataset_info,
+        "data_quality": data_quality_report,
         "summary": _summary_json_cache.get("optimal_policy", {}),
     }
 

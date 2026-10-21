@@ -21,6 +21,10 @@ import './NavigationShell.css';
 
 function parseCsvText(text) {
   const source = String(text ?? '').replace(/^\uFEFF/, '');
+  if (!source.trim()) {
+    throw new Error('The CSV file is empty. Please provide a valid CSV with headers and data rows.');
+  }
+
   const records = [];
   let record = [];
   let field = '';
@@ -78,7 +82,7 @@ function parseCsvText(text) {
   const rows = records.slice(1).map((values) => {
     const row = {};
     headers.forEach((header, index) => {
-      row[header] = String(values[index] ?? '').trim();
+      row[header] = values[index] !== undefined ? String(values[index] ?? '').trim() : '';
     });
     return row;
   });
@@ -90,22 +94,45 @@ function getDatasetColumnStats(dataset) {
   if (!dataset) return [];
 
   return dataset.headers.map((header) => {
+    const lower = header.toLowerCase().trim();
+    const isIdentifier = ['customer_id', 'user_id', 'client_id', 'cust_id', 'account_id', 'id', 'uuid'].includes(lower) ||
+      lower.endsWith('_id') || lower.endsWith('id');
+    const isGroundTruth = lower.startsWith('true_');
+
     const values = dataset.rows.map((row) => String(row[header] ?? '').trim());
     const nonEmpty = values.filter((value) => value !== '');
     const numericValues = nonEmpty.map(Number);
     const isNumeric = nonEmpty.length > 0 && numericValues.every(Number.isFinite);
+    const isBinary = isNumeric && nonEmpty.length > 0 && numericValues.every((n) => n === 0 || n === 1);
     const sortedNumbers = isNumeric ? [...numericValues].sort((a, b) => a - b) : [];
     const sum = isNumeric ? numericValues.reduce((total, value) => total + value, 0) : 0;
 
+    let inferredType = 'Text / Category';
+    if (nonEmpty.length === 0) {
+      inferredType = 'Empty';
+    } else if (isIdentifier) {
+      inferredType = 'Identifier';
+    } else if (isGroundTruth) {
+      inferredType = 'Ground-Truth Benchmark';
+    } else if (isBinary) {
+      inferredType = 'Binary / Flag';
+    } else if (isNumeric) {
+      inferredType = 'Numeric';
+    }
+
+    // Treat identifiers as discrete entity keys, NOT analytical measurements with min/mean/max
+    const showStats = isNumeric && !isIdentifier;
+
     return {
       name: header,
-      type: nonEmpty.length === 0 ? 'Empty' : isNumeric ? 'Numeric' : 'Text / Category',
+      type: inferredType,
+      isIdentifier,
       nonEmpty: nonEmpty.length,
       missing: values.length - nonEmpty.length,
       distinct: new Set(nonEmpty).size,
-      min: isNumeric ? sortedNumbers[0] : null,
-      max: isNumeric ? sortedNumbers[sortedNumbers.length - 1] : null,
-      mean: isNumeric ? sum / numericValues.length : null,
+      min: showStats ? sortedNumbers[0] : null,
+      max: showStats ? sortedNumbers[sortedNumbers.length - 1] : null,
+      mean: showStats ? sum / numericValues.length : null,
     };
   });
 }
@@ -280,9 +307,93 @@ export default function App() {
   );
 
   const datasetNumericColumnCount = useMemo(
-    () => datasetColumnStats.filter((column) => column.type === 'Numeric').length,
+    () => datasetColumnStats.filter((column) => column.type === 'Numeric' || column.type === 'Binary / Flag').length,
     [datasetColumnStats]
   );
+
+  const datasetDuplicateSummary = useMemo(() => {
+    if (!activeDataset || !activeDataset.rows.length) {
+      return { duplicateRows: 0, duplicateIds: 0, idColumn: null };
+    }
+    const rowStrings = new Set();
+    let duplicateRows = 0;
+    for (const row of activeDataset.rows) {
+      const serialized = activeDataset.headers.map((h) => row[h]).join('|||');
+      if (rowStrings.has(serialized)) {
+        duplicateRows += 1;
+      } else {
+        rowStrings.add(serialized);
+      }
+    }
+
+    const idCol = activeDataset.headers.find((h) => {
+      const l = h.toLowerCase().trim();
+      return ['customer_id', 'user_id', 'client_id', 'cust_id', 'account_id', 'id'].includes(l) || l.endsWith('_id');
+    });
+
+    let duplicateIds = 0;
+    if (idCol) {
+      const seenIds = new Set();
+      for (const row of activeDataset.rows) {
+        const val = String(row[idCol] ?? '').trim();
+        if (val) {
+          if (seenIds.has(val)) {
+            duplicateIds += 1;
+          } else {
+            seenIds.add(val);
+          }
+        }
+      }
+    }
+
+    return { duplicateRows, duplicateIds, idColumn: idCol };
+  }, [activeDataset]);
+
+  const datasetQualityWarnings = useMemo(() => {
+    if (!activeDataset) return [];
+    const warnings = [];
+
+    // 1. Anti-leakage warning
+    if (activeDatasetType === 'pricing') {
+      const leakCols = activeDataset.headers.filter((h) => h.toLowerCase().startsWith('true_'));
+      if (leakCols.length > 0) {
+        warnings.push({
+          severity: 'critical',
+          title: 'Potential Data Leakage Detected',
+          message: `${leakCols.length} ground-truth column(s) detected (${leakCols.join(', ')}). Ground-truth counterfactuals must strictly be isolated from pricing datasets.`,
+        });
+      }
+    }
+
+    // 2. Missing cells warning
+    if (datasetMissingCellCount > 0) {
+      warnings.push({
+        severity: 'warning',
+        title: 'Missing Values Detected',
+        message: `${datasetMissingCellCount.toLocaleString('en-IN')} missing cell(s) across ${activeDataset.headers.length} columns. Numerical missing values are imputed via median, categoricals via mode per project specification.`,
+      });
+    }
+
+    // 3. Duplicate rows
+    if (datasetDuplicateSummary.duplicateRows > 0) {
+      warnings.push({
+        severity: 'warning',
+        title: 'Duplicate Records Detected',
+        message: `${datasetDuplicateSummary.duplicateRows.toLocaleString('en-IN')} duplicate row(s) detected in the active dataset.`,
+      });
+    }
+
+    // 4. Duplicate identifiers
+    if (datasetDuplicateSummary.duplicateIds > 0) {
+      warnings.push({
+        severity: 'warning',
+        title: 'Duplicate Identifiers Detected',
+        message: `${datasetDuplicateSummary.duplicateIds.toLocaleString('en-IN')} duplicate values found in '${datasetDuplicateSummary.idColumn}'. Entity identifiers must be globally unique.`,
+      });
+    }
+
+    return warnings;
+  }, [activeDataset, activeDatasetType, datasetMissingCellCount, datasetDuplicateSummary]);
 
   const filteredDatasetRows = useMemo(() => {
     if (!activeDataset) return [];
@@ -463,7 +574,7 @@ export default function App() {
     setIsLoadingSample(true);
     setDatasetLoadError('');
     try {
-      const res = await fetch('/api/dataset/sample?limit=5000');
+      const res = await fetch('/api/dataset/sample?limit=10000');
       if (!res.ok) throw new Error('Failed to load active pricing benchmark dataset.');
       const data = await res.json();
       const dataset = {
@@ -661,17 +772,25 @@ export default function App() {
         rows: parsed.rows,
       };
 
-      if (activeDatasetType === 'pricing') {
-        setPricingDataset(dataset);
-      } else {
+      if (activeDatasetType === 'ground_truth') {
         setGroundTruthDataset(dataset);
+        setDatasetSearch('');
+        setDatasetColumnFilter('');
+        setDatasetColumnSearch('');
+        setDatasetPage(1);
+        setDatasetUploadSuccess(
+          `Successfully loaded evaluation benchmark '${file.name}' (${dataset.rows.length.toLocaleString('en-IN')} records) for offline causal audit. Ground truth remains strictly isolated from online model inference.`
+        );
+        return;
       }
+
+      setPricingDataset(dataset);
       setDatasetSearch('');
       setDatasetColumnFilter('');
       setDatasetColumnSearch('');
       setDatasetPage(1);
 
-      // 2. Synchronize to FastAPI backend to power all modules (Overview, Simulator, Recommendations, Charts)
+      // 2. Synchronize pricing dataset to FastAPI backend to power all modules (Overview, Simulator, Recommendations, Charts)
       const formData = new FormData();
       formData.append('file', file);
       const res = await fetch('/api/dataset/upload', {
@@ -1687,17 +1806,56 @@ export default function App() {
                   <small>Blank values across the file</small>
                 </article>
                 <article className="ec-dataset-stat-card">
-                  <span className="ec-dataset-stat-label">Numeric columns</span>
+                  <span className="ec-dataset-stat-label">Numeric features</span>
                   <strong>{datasetNumericColumnCount.toLocaleString('en-IN')}</strong>
-                  <small>Inferred from the loaded values</small>
+                  <small>Inferred analytical variables</small>
+                </article>
+                <article className="ec-dataset-stat-card">
+                  <span className="ec-dataset-stat-label">Duplicates</span>
+                  <strong className={datasetDuplicateSummary.duplicateRows > 0 || datasetDuplicateSummary.duplicateIds > 0 ? 'ec-stat-warning' : ''}>
+                    {datasetDuplicateSummary.duplicateRows === 0 && datasetDuplicateSummary.duplicateIds === 0
+                      ? '0 Clean'
+                      : `${datasetDuplicateSummary.duplicateRows} rows`}
+                  </strong>
+                  <small>{datasetDuplicateSummary.duplicateIds > 0 ? `${datasetDuplicateSummary.duplicateIds} duplicate ${datasetDuplicateSummary.idColumn || 'IDs'}` : '0 duplicate IDs'}</small>
                 </article>
               </div>
+
+              {datasetQualityWarnings.length > 0 && (
+                <div className="ec-dataset-warnings-container" role="alert" style={{ marginBottom: '1.25rem' }}>
+                  {datasetQualityWarnings.map((warn, wIdx) => (
+                    <div
+                      key={`warn-${wIdx}`}
+                      style={{
+                        display: 'flex',
+                        gap: '12px',
+                        alignItems: 'flex-start',
+                        padding: '12px 16px',
+                        marginBottom: '8px',
+                        borderRadius: '8px',
+                        backgroundColor: warn.severity === 'critical' ? 'rgba(217, 37, 61, 0.08)' : 'rgba(234, 154, 42, 0.08)',
+                        border: `1px solid ${warn.severity === 'critical' ? 'rgba(217, 37, 61, 0.3)' : 'rgba(234, 154, 42, 0.3)'}`,
+                        color: warn.severity === 'critical' ? '#D9253D' : '#D97706',
+                        fontSize: '0.85rem',
+                      }}
+                    >
+                      <span style={{ fontSize: '1.1rem', lineHeight: 1 }} aria-hidden="true">
+                        {warn.severity === 'critical' ? '🛑' : '⚠️'}
+                      </span>
+                      <div>
+                        <strong style={{ display: 'block', marginBottom: '2px' }}>{warn.title}</strong>
+                        <span>{warn.message}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
 
               <section className="ec-dataset-panel" aria-labelledby="dataset-profile-title">
                 <div className="ec-dataset-panel-header">
                   <div>
                     <h3 id="dataset-profile-title">Column profile</h3>
-                    <p>Types are inferred from the loaded CSV values; check the source schema before modelling.</p>
+                    <p>Schema-aware types inferred from loaded CSV values; identifiers and benchmark columns are distinguished from analytical model features.</p>
                   </div>
                   <span className="ec-count-pill">{datasetColumnStats.length} fields</span>
                 </div>
@@ -1719,7 +1877,11 @@ export default function App() {
                       {datasetColumnStats.map((column) => (
                         <tr key={column.name}>
                           <td className="ec-column-name">{column.name}</td>
-                          <td><span className={`ec-type-pill ${column.type === 'Numeric' ? 'numeric' : ''}`}>{column.type}</span></td>
+                          <td>
+                            <span className={`ec-type-pill ${column.type === 'Numeric' ? 'numeric' : column.type === 'Identifier' ? 'identifier' : column.type === 'Binary / Flag' ? 'binary' : column.type.includes('Benchmark') ? 'benchmark' : ''}`}>
+                              {column.type}
+                            </span>
+                          </td>
                           <td>{column.nonEmpty.toLocaleString('en-IN')}</td>
                           <td className={column.missing > 0 ? 'ec-stat-warning' : ''}>{column.missing.toLocaleString('en-IN')}</td>
                           <td>{column.distinct.toLocaleString('en-IN')}</td>

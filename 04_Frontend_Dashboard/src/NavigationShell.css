@@ -747,6 +747,23 @@
   color: var(--color-cyan);
 }
 
+.ec-type-pill.identifier {
+  background: rgba(139, 92, 246, 0.14);
+  color: #a78bfa;
+  border: 1px solid rgba(139, 92, 246, 0.25);
+}
+
+.ec-type-pill.binary {
+  background: rgba(16, 185, 129, 0.12);
+  color: #10b981;
+}
+
+.ec-type-pill.benchmark {
+  background: rgba(234, 154, 42, 0.14);
+  color: #f59e0b;
+  border: 1px solid rgba(234, 154, 42, 0.3);
+}
+
 .ec-column-name { font-weight: 600; color: var(--text-primary); font-family: var(--font-mono); font-size: 0.75rem; }
 .ec-empty-cell { color: var(--text-tertiary); }
 .ec-no-results { text-align: center; padding: 2rem; color: var(--text-secondary); }
