@@ -109,11 +109,11 @@ function StatusBadge({ status, onClick }) {
 }
 
 /* ── SVG Multi-Band Donut Chart ──────────────────────────────────────────── */
-function DonutChart({ bands = [], total = 10000, size = 180 }) {
+function DonutChart({ bands = [], total = 10000, size = 132, isLight = true }) {
   const cx = size / 2;
   const cy = size / 2;
-  const radius = 56;
-  const strokeWidth = 20;
+  const strokeWidth = 15;
+  const radius = 50;
   const circumference = 2 * Math.PI * radius;
 
   // Precompute segment offsets immutably
@@ -136,7 +136,7 @@ function DonutChart({ bands = [], total = 10000, size = 180 }) {
           cy={cy}
           r={radius}
           fill="none"
-          stroke="#F3F4F6"
+          stroke={isLight ? '#F1F3F5' : 'rgba(255, 255, 255, 0.08)'}
           strokeWidth={strokeWidth}
         />
         {/* Color segments */}
@@ -166,7 +166,7 @@ function DonutChart({ bands = [], total = 10000, size = 180 }) {
 }
 
 /* ── SVG Semi-Circular Radial Gauge ──────────────────────────────────────── */
-function SemiCircleGauge({ pct = 99.2, size = 200 }) {
+function SemiCircleGauge({ pct = 99.2, size = 200, isLight = true }) {
   const cx = size / 2;
   const cy = size * 0.58;
   const radius = 68;
@@ -181,7 +181,7 @@ function SemiCircleGauge({ pct = 99.2, size = 200 }) {
         <path
           d={`M ${cx - radius} ${cy} A ${radius} ${radius} 0 0 1 ${cx + radius} ${cy}`}
           fill="none"
-          stroke="#E5E7EB"
+          stroke={isLight ? '#E5E7EB' : 'rgba(255, 255, 255, 0.1)'}
           strokeWidth={strokeWidth}
           strokeLinecap="round"
         />
@@ -585,17 +585,20 @@ export default function DashboardOverview({
             <DonutChart
               bands={marginBands}
               total={dyn?.margin_distribution?.total_evaluated ?? 10000}
-              size={170}
+              size={132}
+              isLight={isLight}
             />
 
             <div className="ov-donut-legend">
               {marginBands.map((band, idx) => (
                 <div key={idx} className="ov-legend-entry">
-                  <span className="ov-legend-dot" style={{ background: band.color }} />
-                  <span className="ov-legend-name">{band.label}</span>
-                  <span className="ov-legend-val">
+                  <div className="ov-legend-header-line">
+                    <span className="ov-legend-dot" style={{ background: band.color }} />
+                    <span className="ov-legend-name" title={band.label}>{band.label}</span>
+                  </div>
+                  <div className="ov-legend-val">
                     {fmt(band.count)} <span className="ov-legend-pct">({band.pct.toFixed(1)}%)</span>
-                  </span>
+                  </div>
                 </div>
               ))}
             </div>
@@ -671,7 +674,7 @@ export default function DashboardOverview({
           </div>
 
           <div className="ov-floor-body">
-            <SemiCircleGauge pct={floorOverview.pct_above_floor} size={185} />
+            <SemiCircleGauge pct={floorOverview.pct_above_floor} size={185} isLight={isLight} />
 
             <div className="ov-floor-breakdown">
               <div className="ov-floor-stat-row">
@@ -746,7 +749,7 @@ export default function DashboardOverview({
                   <tr key={idx}>
                     <td className="ov-td-rule-name">{rule.name}</td>
                     <td className="ov-td-rule-type">{rule.type}</td>
-                    <td className="ov-td-rule-desc">{rule.description}</td>
+                    <td className="ov-td-rule-desc" title={rule.description}>{rule.description}</td>
                     <td>
                       <StatusBadge status={rule.status} onClick={() => toggleRule(rule.name)} />
                     </td>

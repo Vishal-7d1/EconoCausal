@@ -5,7 +5,7 @@
 
 /* ── App Shell Grid ── */
 .ec-app-shell {
-  --ec-sidebar-width: 220px;
+  --ec-sidebar-width: 236px;
   display: grid;
   grid-template-columns: var(--ec-sidebar-width) minmax(0, 1fr);
   min-height: 100vh;
@@ -172,19 +172,20 @@
 .ec-sidebar-store-card {
   display: flex;
   align-items: center;
-  gap: 10px;
-  margin: auto 12px 14px;
-  padding: 8px 12px;
-  background: #F8F9FB;
-  border: 1px solid #E5E7EB;
+  gap: 9px;
+  margin: auto 10px 14px;
+  padding: 8px 10px;
+  background: var(--surface-sunken, #F8F9FB);
+  border: 1px solid var(--border, #E5E7EB);
   border-radius: 8px;
   cursor: pointer;
   transition: all var(--transition-fast, 140ms ease);
   flex-shrink: 0;
+  box-sizing: border-box;
 }
 
 .ec-sidebar-store-card:hover {
-  background: #F1F3F8;
+  background: var(--bg-hover, #F1F3F8);
   border-color: #D1D5DB;
 }
 
@@ -202,8 +203,9 @@
 .ec-store-info {
   display: flex;
   flex-direction: column;
-  gap: 1px;
-  flex: 1;
+  justify-content: center;
+  gap: 2px;
+  flex: 1 1 auto;
   min-width: 0;
 }
 
@@ -220,12 +222,37 @@
 .ec-store-plan {
   font-size: 0.675rem;
   color: var(--text-secondary, #6B7280);
-  line-height: 1.2;
+  line-height: 1.25;
+  word-break: normal;
+  overflow-wrap: break-word;
 }
 
 .ec-store-chevron {
   color: var(--text-tertiary, #9CA3AF);
   flex-shrink: 0;
+  margin-left: 2px;
+}
+
+:root[data-theme="dark"] .ec-sidebar-store-card {
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+:root[data-theme="dark"] .ec-sidebar-store-card:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(239, 68, 68, 0.3);
+}
+
+:root[data-theme="dark"] .ec-store-name {
+  color: #F8FAFC;
+}
+
+:root[data-theme="dark"] .ec-store-plan {
+  color: #94A3B8;
+}
+
+:root[data-theme="dark"] .ec-store-chevron {
+  color: #64748B;
 }
 
 /* ── Sidebar Footer Fallback ── */

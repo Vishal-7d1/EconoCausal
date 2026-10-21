@@ -1392,7 +1392,23 @@ export default function App() {
           ))}
         </nav>
 
-        <div className="ec-sidebar-store-card" title="Infotact Solutions — Data Associate L1">
+        <div
+          className="ec-sidebar-store-card"
+          title="Infotact Solutions — Data Associate L1 • Click to explore Dataset"
+          role="button"
+          tabIndex={0}
+          onClick={() => {
+            setActiveTab('dataset');
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+            const mainArea = document.querySelector('.ec-main-area');
+            if (mainArea) mainArea.scrollTo({ top: 0, behavior: 'smooth' });
+          }}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              setActiveTab('dataset');
+            }
+          }}
+        >
           <div className="ec-store-icon-box">
             <Store size={15} />
           </div>
