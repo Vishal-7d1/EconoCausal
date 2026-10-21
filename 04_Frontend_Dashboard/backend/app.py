@@ -952,9 +952,9 @@ def get_cate_summary() -> CATESummaryResponse:
             pass
 
     rel_path = (
-        str(DML_PREDICTIONS_PATH.relative_to(REPO_ROOT))
+        DML_PREDICTIONS_PATH.relative_to(REPO_ROOT).as_posix()
         if DML_PREDICTIONS_PATH.is_relative_to(REPO_ROOT)
-        else str(DML_PREDICTIONS_PATH)
+        else str(DML_PREDICTIONS_PATH).replace("\\", "/")
     )
 
     resp_data = {
