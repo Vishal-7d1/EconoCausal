@@ -401,17 +401,43 @@ class TestDashboardAPI(unittest.TestCase):
 
     def test_23_nan_and_infinity_rejection(self):
         """Verify that NaN and Infinity for budget or margin are rejected with 422."""
-        # NaN budget
-        resp_nan = self.client.post("/api/simulate", json={"budget": float("nan")})
+        # Raw JSON with NaN token
+        resp_nan = self.client.post(
+            "/api/simulate",
+            content=b'{"budget": NaN}',
+            headers={"Content-Type": "application/json"}
+        )
         self.assertEqual(resp_nan.status_code, 422)
 
-        # Inf budget
-        resp_inf = self.client.post("/api/simulate", json={"budget": float("inf")})
+        # Raw JSON with Infinity token
+        resp_inf = self.client.post(
+            "/api/simulate",
+            content=b'{"budget": Infinity}',
+            headers={"Content-Type": "application/json"}
+        )
         self.assertEqual(resp_inf.status_code, 422)
 
-        # NaN margin ratio
-        resp_margin_nan = self.client.post("/api/simulate", json={"budget": 10000.0, "margin_ratio": float("nan")})
+        # String "NaN" or "Infinity"
+        resp_nan_str = self.client.post("/api/simulate", json={"budget": "NaN"})
+        self.assertEqual(resp_nan_str.status_code, 422)
+
+        resp_inf_str = self.client.post("/api/simulate", json={"budget": "Infinity"})
+        self.assertEqual(resp_inf_str.status_code, 422)
+
+        # NaN and Inf margin ratio
+        resp_margin_nan = self.client.post(
+            "/api/simulate",
+            content=b'{"budget": 10000.0, "margin_ratio": NaN}',
+            headers={"Content-Type": "application/json"}
+        )
         self.assertEqual(resp_margin_nan.status_code, 422)
+
+        resp_margin_inf = self.client.post(
+            "/api/simulate",
+            content=b'{"budget": 10000.0, "margin_ratio": Infinity}',
+            headers={"Content-Type": "application/json"}
+        )
+        self.assertEqual(resp_margin_inf.status_code, 422)
 
     def test_24_objectives_profit_and_conversions(self):
         """Verify both max_profit and max_conversions objectives are supported and identified in API response."""
@@ -511,18 +537,24 @@ class TestDashboardAPI(unittest.TestCase):
 
     def test_30_baseline_cache_and_invalidation(self):
         """Verify safe in-memory baseline conversion model caching, latency improvement, and invalidation."""
-        # First call: populates cache
-        t0 = time.time()
-        resp1 = self.client.post("/api/simulate", json={"budget": 10000.0})
-        t_first = time.time() - t0
-        self.assertEqual(resp1.status_code, 200)
+        # Ensure fresh cache state by resetting first
+        self.client.post("/api/dataset/reset")
 
-        # Second call: uses cached baseline model
-        t0 = time.time()
+        # First call: populates cache (fits logistic regression)
+        t0 = time.perf_counter()
+        resp1 = self.client.post("/api/simulate", json={"budget": 10000.0})
+        t_first = time.perf_counter() - t0
+        self.assertEqual(resp1.status_code, 200)
+        self.assertFalse(resp1.json()["performance"]["baseline_model_cached"])
+
+        # Second call: uses cached baseline model (no refit)
+        t0 = time.perf_counter()
         resp2 = self.client.post("/api/simulate", json={"budget": 15000.0})
-        t_second = time.time() - t0
+        t_second = time.perf_counter() - t0
         self.assertEqual(resp2.status_code, 200)
         self.assertTrue(resp2.json()["performance"]["baseline_model_cached"])
+
+        print(f"\n[LATENCY MEASUREMENT] First run (fitting baseline): {t_first*1000:.1f}ms | Second run (cached baseline): {t_second*1000:.1f}ms (Speedup: {t_first/max(t_second, 1e-6):.2f}x)")
 
         # Invalidate cache via dataset reset
         resp_reset = self.client.post("/api/dataset/reset")

@@ -28,8 +28,9 @@ from typing import Any, Dict, List, Optional, Tuple
 import numpy as np
 import pandas as pd
 from fastapi import FastAPI, HTTPException, Query, Request, status, UploadFile, File
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import Response
+from fastapi.responses import JSONResponse, Response
 from pydantic import BaseModel, Field, field_validator
 
 from dml_service import (
@@ -240,6 +241,29 @@ app.add_middleware(
     allow_methods=["GET", "POST", "OPTIONS"],
     allow_headers=["*"],
 )
+
+
+def _sanitize_validation_errors(obj: Any) -> Any:
+    """Recursively convert NaN and Infinite floats to strings so error responses serialize cleanly."""
+    if isinstance(obj, float):
+        if math.isnan(obj) or math.isinf(obj):
+            return str(obj)
+        return obj
+    if isinstance(obj, dict):
+        return {k: _sanitize_validation_errors(v) for k, v in obj.items()}
+    if isinstance(obj, (list, tuple)):
+        return [_sanitize_validation_errors(v) for v in obj]
+    return obj
+
+
+@app.exception_handler(RequestValidationError)
+async def custom_validation_exception_handler(request: Request, exc: RequestValidationError):
+    """Ensure validation errors containing NaN/Inf serialize to valid JSON with 422 Unprocessable Content."""
+    sanitized = _sanitize_validation_errors(exc.errors())
+    return JSONResponse(
+        status_code=422,
+        content={"detail": sanitized},
+    )
 
 
 def categorize_income_tier(income: float) -> str:
