@@ -43,6 +43,23 @@ CONFOUNDERS: List[str] = [
 ]
 
 
+def extract_refutation_p_value(refute_obj: Any) -> Tuple[Optional[float], str]:
+    """Safely extract p-value from DoWhy refutation object without fabricating fallbacks."""
+    raw_p = getattr(refute_obj, "p_value", None)
+    if raw_p is None:
+        return None, "unavailable (DoWhy returned None)"
+    try:
+        val = float(raw_p)
+        if np.isnan(val):
+            return None, "unavailable (NaN)"
+        return float(round(val, 4)), "computed"
+    except (ValueError, TypeError) as exc:
+        return None, f"unavailable ({exc})"
+
+
+_extract_p_value = extract_refutation_p_value
+
+
 def run_dowhy_pipeline() -> Dict[str, Any]:
     logger.info("Initializing Microsoft DoWhy Causal Graph Pipeline...")
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
@@ -82,19 +99,6 @@ def run_dowhy_pipeline() -> Dict[str, Any]:
     )
     estimated_value = float(estimate.value)
     logger.info(f"Estimated Average Treatment Effect (ATE): {estimated_value:.4f}")
-
-    def _extract_p_value(refute_obj: Any) -> Tuple[Optional[float], str]:
-        """Safely extract p-value from DoWhy refutation object without fabricating fallbacks."""
-        raw_p = getattr(refute_obj, "p_value", None)
-        if raw_p is None:
-            return None, "unavailable (DoWhy returned None)"
-        try:
-            val = float(raw_p)
-            if np.isnan(val):
-                return None, "unavailable (NaN)"
-            return float(round(val, 4)), "computed"
-        except (ValueError, TypeError) as exc:
-            return None, f"unavailable ({exc})"
 
     # 4. Run DoWhy Refutation Tests (Mid-Project Review Requirement)
     logger.info("Executing DoWhy Refutation 1: Random Common Cause...")

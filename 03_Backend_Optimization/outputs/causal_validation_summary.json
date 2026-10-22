@@ -1,5 +1,5 @@
 {
-  "audit_timestamp": "2026-10-18 11:17:36 UTC",
+  "audit_timestamp": "2026-10-22 11:55:11 UTC",
   "causal_robustness_audit": {
     "robustness_score": 100.0,
     "certification_grade": "Validation Passed (Simulated Benchmark)",
@@ -8,7 +8,7 @@
     "total_checks": 13,
     "passed_checks": 13,
     "all_covariates_balanced": true,
-    "disclaimer": "All 4 refutation checks and observable covariate balance passed on this simulated benchmark. Observational assumptions cannot be guaranteed for unobserved variables without randomized experiments."
+    "disclaimer": "Diagnostic and refutation checks passed on this simulated benchmark. Observational assumptions (unconfoundedness) cannot be guaranteed for unobserved variables without randomized experiments."
   },
   "arm_10": {
     "arm_name": "\u20b910 Promotional Offer",
@@ -229,8 +229,106 @@
         "passes_refutation": true,
         "status": "PASS",
         "verdict": "Passed: Positivity holds across full support. Effect shift after trimming 0.4% tail units is 0.17%."
+      },
+      {
+        "refutation_type": "Monte Carlo Treatment Permutation Test",
+        "description": "Randomization inference over 500 permutations preserving treatment-arm sizes. Under H0 (zero effect), observed uplift must lie outside the 95% permutation null interval.",
+        "n_permutations": 500,
+        "observed_effect_pct": 14.22,
+        "null_mean_pct": -0.079,
+        "null_std_error": 0.0107,
+        "null_ci_95": [
+          -2.116,
+          2.023
+        ],
+        "empirical_p_value": 0.002,
+        "p_value": 0.002,
+        "passes_refutation": true,
+        "status": "PASS",
+        "verdict": "Passed: Observed effect (14.22%) exceeds the 95% null distribution interval [-2.12%, 2.02%] (p = 0.00200 < 0.05).",
+        "assumptions_and_limitations": "Randomization inference confirms that the observed uplift is not a random permutation artifact. However, treatment permutation cannot establish unconfoundedness or rule out unobserved confounding."
       }
-    ]
+    ],
+    "sensitivity_analysis": {
+      "cinelli_hazlett": {
+        "method": "Cinelli-Hazlett (2020) Partial-R2 Sensitivity Analysis",
+        "estimand": "Partially linear residualized risk difference (Robinson OLS)",
+        "sample_size": 7849,
+        "degrees_of_freedom": 7839,
+        "observed_effect_pct": 14.22,
+        "std_error": 0.0121,
+        "t_statistic": 11.754,
+        "partial_r2_y_t_pct": 1.73,
+        "robustness_value_q1_pct": 12.42,
+        "robustness_value_alpha_pct": 10.47,
+        "observed_covariate_benchmarks": {
+          "monthly_income_inr": {
+            "partial_r2_treatment": 1.863,
+            "partial_r2_outcome": 0.015
+          },
+          "days_since_last_purchase": {
+            "partial_r2_treatment": 2.492,
+            "partial_r2_outcome": 1.478
+          },
+          "loyalty_member": {
+            "partial_r2_treatment": 0.539,
+            "partial_r2_outcome": 0.442
+          }
+        },
+        "interpretation": "An unobserved confounder U would need to explain at least 12.42% of the residual variance in both treatment assignment and purchase conversion to reduce the estimated treatment effect to zero. To render the effect statistically insignificant at alpha=0.05, U would need to explain 10.47% of the residual variance in both."
+      },
+      "rosenbaum_bounds": {
+        "method": "Rosenbaum Sensitivity Bounds for Matched Pairs",
+        "estimand": "Matched-pair Wilcoxon signed-rank test under hidden selection bias",
+        "matched_pairs_total": 2273,
+        "discordant_pairs": 1169,
+        "t_positive_rank_sum": 439335.0,
+        "gamma_critical": 1.7,
+        "sample_bounds": [
+          {
+            "gamma": 1.0,
+            "p_upper_bound": 0.0
+          },
+          {
+            "gamma": 1.1,
+            "p_upper_bound": 0.0
+          },
+          {
+            "gamma": 1.2,
+            "p_upper_bound": 0.0
+          },
+          {
+            "gamma": 1.3,
+            "p_upper_bound": 0.0
+          },
+          {
+            "gamma": 1.4,
+            "p_upper_bound": 2e-05
+          },
+          {
+            "gamma": 1.5,
+            "p_upper_bound": 0.00153
+          },
+          {
+            "gamma": 1.6,
+            "p_upper_bound": 0.02868
+          },
+          {
+            "gamma": 1.7,
+            "p_upper_bound": 0.18241
+          },
+          {
+            "gamma": 1.8,
+            "p_upper_bound": 0.51219
+          },
+          {
+            "gamma": 1.9,
+            "p_upper_bound": 0.82035
+          }
+        ],
+        "interpretation": "Under no hidden bias (Gamma = 1.0), p < 0.001. An unobserved confounder would need to increase the odds of treatment assignment by a factor of Gamma* = 1.7 between matched customers with identical observable covariates before the causal conclusion could be explained away (p > 0.05)."
+      }
+    }
   },
   "arm_20": {
     "arm_name": "\u20b920 Promotional Offer",
@@ -396,7 +494,161 @@
         "status": "PASS",
         "variance_status": "OPTIMAL"
       }
-    ]
+    ],
+    "refutations": [
+      {
+        "refutation_type": "Placebo Treatment Test",
+        "description": "Randomly permutes treatment assignment. Valid causal effect must collapse to ~0 with 95% CI covering 0.",
+        "observed_effect_pct": 21.32,
+        "placebo_effect_pct": 0.228,
+        "std_error": 0.0122,
+        "p_value": 0.8519,
+        "ci_95": [
+          -2.162,
+          2.618
+        ],
+        "passes_refutation": true,
+        "status": "PASS",
+        "verdict": "Passed: Causal effect successfully vanished under randomized treatment permutation (p > 0.05)."
+      },
+      {
+        "refutation_type": "Random Common Cause Refutation",
+        "description": "Injects synthetic unobserved confounder noise. CATE estimate must remain stable (< 5% relative drift).",
+        "baseline_effect_pct": 21.32,
+        "perturbed_effect_pct": 21.29,
+        "drift_pct": 0.12,
+        "p_value": 0.0,
+        "passes_refutation": true,
+        "status": "PASS",
+        "verdict": "Passed: Estimated treatment effect remained stable within 0.12% under confounder injection."
+      },
+      {
+        "refutation_type": "Data Subset Removal Refutation",
+        "description": "Evaluates causal effect across 10 random 80% subsamples. Tests against sample-specific overfitting.",
+        "baseline_effect_pct": 21.32,
+        "subsample_mean_effect_pct": 21.18,
+        "subsample_std_error": 0.0049,
+        "drift_pct": 0.65,
+        "ci_95": [
+          20.22,
+          22.14
+        ],
+        "passes_refutation": true,
+        "status": "PASS",
+        "verdict": "Passed: 80% data subsample effect (21.18%) matches baseline (21.32%) within 0.65%."
+      },
+      {
+        "refutation_type": "Positivity Overlap Trimming Sensitivity",
+        "description": "Excludes extreme propensity tails (P < 0.05 or P > 0.95) to confirm common support positivity.",
+        "baseline_effect_pct": 21.32,
+        "trimmed_effect_pct": 21.22,
+        "units_trimmed": 87,
+        "trimmed_share_pct": 1.14,
+        "drift_pct": 0.45,
+        "p_value": 0.0,
+        "passes_refutation": true,
+        "status": "PASS",
+        "verdict": "Passed: Positivity holds across full support. Effect shift after trimming 1.1% tail units is 0.45%."
+      },
+      {
+        "refutation_type": "Monte Carlo Treatment Permutation Test",
+        "description": "Randomization inference over 500 permutations preserving treatment-arm sizes. Under H0 (zero effect), observed uplift must lie outside the 95% permutation null interval.",
+        "n_permutations": 500,
+        "observed_effect_pct": 21.32,
+        "null_mean_pct": -0.009,
+        "null_std_error": 0.0115,
+        "null_ci_95": [
+          -2.442,
+          2.141
+        ],
+        "empirical_p_value": 0.002,
+        "p_value": 0.002,
+        "passes_refutation": true,
+        "status": "PASS",
+        "verdict": "Passed: Observed effect (21.32%) exceeds the 95% null distribution interval [-2.44%, 2.14%] (p = 0.00200 < 0.05).",
+        "assumptions_and_limitations": "Randomization inference confirms that the observed uplift is not a random permutation artifact. However, treatment permutation cannot establish unconfoundedness or rule out unobserved confounding."
+      }
+    ],
+    "sensitivity_analysis": {
+      "cinelli_hazlett": {
+        "method": "Cinelli-Hazlett (2020) Partial-R2 Sensitivity Analysis",
+        "estimand": "Partially linear residualized risk difference (Robinson OLS)",
+        "sample_size": 7629,
+        "degrees_of_freedom": 7619,
+        "observed_effect_pct": 21.32,
+        "std_error": 0.0124,
+        "t_statistic": 17.15,
+        "partial_r2_y_t_pct": 3.72,
+        "robustness_value_q1_pct": 17.81,
+        "robustness_value_alpha_pct": 15.95,
+        "observed_covariate_benchmarks": {
+          "monthly_income_inr": {
+            "partial_r2_treatment": 4.334,
+            "partial_r2_outcome": 0.144
+          },
+          "days_since_last_purchase": {
+            "partial_r2_treatment": 1.784,
+            "partial_r2_outcome": 1.318
+          },
+          "loyalty_member": {
+            "partial_r2_treatment": 0.842,
+            "partial_r2_outcome": 0.374
+          }
+        },
+        "interpretation": "An unobserved confounder U would need to explain at least 17.81% of the residual variance in both treatment assignment and purchase conversion to reduce the estimated treatment effect to zero. To render the effect statistically insignificant at alpha=0.05, U would need to explain 15.95% of the residual variance in both."
+      },
+      "rosenbaum_bounds": {
+        "method": "Rosenbaum Sensitivity Bounds for Matched Pairs",
+        "estimand": "Matched-pair Wilcoxon signed-rank test under hidden selection bias",
+        "matched_pairs_total": 2088,
+        "discordant_pairs": 1067,
+        "t_positive_rank_sum": 396762.0,
+        "gamma_critical": 2.1,
+        "sample_bounds": [
+          {
+            "gamma": 1.0,
+            "p_upper_bound": 0.0
+          },
+          {
+            "gamma": 1.1,
+            "p_upper_bound": 0.0
+          },
+          {
+            "gamma": 1.2,
+            "p_upper_bound": 0.0
+          },
+          {
+            "gamma": 1.3,
+            "p_upper_bound": 0.0
+          },
+          {
+            "gamma": 1.4,
+            "p_upper_bound": 0.0
+          },
+          {
+            "gamma": 1.5,
+            "p_upper_bound": 0.0
+          },
+          {
+            "gamma": 1.6,
+            "p_upper_bound": 0.0
+          },
+          {
+            "gamma": 1.7,
+            "p_upper_bound": 0.0
+          },
+          {
+            "gamma": 1.8,
+            "p_upper_bound": 0.00013
+          },
+          {
+            "gamma": 1.9,
+            "p_upper_bound": 0.00233
+          }
+        ],
+        "interpretation": "Under no hidden bias (Gamma = 1.0), p < 0.001. An unobserved confounder would need to increase the odds of treatment assignment by a factor of Gamma* = 2.1 between matched customers with identical observable covariates before the causal conclusion could be explained away (p > 0.05)."
+      }
+    }
   },
   "love_plot_data": {
     "covariates": [
@@ -433,5 +685,174 @@
       0.0043
     ],
     "threshold": 0.1
+  },
+  "pairwise_overlap_diagnostics": {
+    "arm_10_vs_0": {
+      "contrast_label": "\u20b910 Discount vs \u20b90 Control",
+      "sample_size": 7849,
+      "treated_units": 2371,
+      "control_units": 5478,
+      "propensity_summary": {
+        "min": 0.0103,
+        "q25": 0.2095,
+        "median": 0.287,
+        "mean": 0.3021,
+        "q75": 0.3771,
+        "max": 0.9307
+      },
+      "baseline_effect_pct": 14.22,
+      "trimming_sensitivity": [
+        {
+          "cutoff": "[0.00, 1.00]",
+          "units_retained": 7849,
+          "units_trimmed": 0,
+          "trimmed_share_pct": 0.0,
+          "estimated_effect_pct": 14.22,
+          "relative_drift_pct": 0.0
+        },
+        {
+          "cutoff": "[0.01, 0.99]",
+          "units_retained": 7849,
+          "units_trimmed": 0,
+          "trimmed_share_pct": 0.0,
+          "estimated_effect_pct": 14.22,
+          "relative_drift_pct": 0.0
+        },
+        {
+          "cutoff": "[0.05, 0.95]",
+          "units_retained": 7820,
+          "units_trimmed": 29,
+          "trimmed_share_pct": 0.37,
+          "estimated_effect_pct": 14.25,
+          "relative_drift_pct": 0.17
+        },
+        {
+          "cutoff": "[0.10, 0.90]",
+          "units_retained": 7603,
+          "units_trimmed": 246,
+          "trimmed_share_pct": 3.13,
+          "estimated_effect_pct": 14.28,
+          "relative_drift_pct": 0.42
+        }
+      ]
+    },
+    "arm_20_vs_0": {
+      "contrast_label": "\u20b920 Discount vs \u20b90 Control",
+      "sample_size": 7629,
+      "treated_units": 2151,
+      "control_units": 5478,
+      "propensity_summary": {
+        "min": 0.0021,
+        "q25": 0.1925,
+        "median": 0.2706,
+        "mean": 0.282,
+        "q75": 0.3578,
+        "max": 0.8926
+      },
+      "baseline_effect_pct": 21.32,
+      "trimming_sensitivity": [
+        {
+          "cutoff": "[0.00, 1.00]",
+          "units_retained": 7629,
+          "units_trimmed": 0,
+          "trimmed_share_pct": 0.0,
+          "estimated_effect_pct": 21.32,
+          "relative_drift_pct": 0.0
+        },
+        {
+          "cutoff": "[0.01, 0.99]",
+          "units_retained": 7628,
+          "units_trimmed": 1,
+          "trimmed_share_pct": 0.01,
+          "estimated_effect_pct": 21.33,
+          "relative_drift_pct": 0.04
+        },
+        {
+          "cutoff": "[0.05, 0.95]",
+          "units_retained": 7542,
+          "units_trimmed": 87,
+          "trimmed_share_pct": 1.14,
+          "estimated_effect_pct": 21.22,
+          "relative_drift_pct": 0.45
+        },
+        {
+          "cutoff": "[0.10, 0.90]",
+          "units_retained": 7201,
+          "units_trimmed": 428,
+          "trimmed_share_pct": 5.61,
+          "estimated_effect_pct": 21.03,
+          "relative_drift_pct": 1.36
+        }
+      ]
+    },
+    "arm_20_vs_10": {
+      "contrast_label": "\u20b920 Discount vs \u20b910 Discount (Incremental)",
+      "sample_size": 4522,
+      "treated_units": 2151,
+      "control_units": 2371,
+      "propensity_summary": {
+        "min": 0.1924,
+        "q25": 0.4241,
+        "median": 0.4726,
+        "mean": 0.4757,
+        "q75": 0.5222,
+        "max": 0.8895
+      },
+      "baseline_effect_pct": 6.77,
+      "trimming_sensitivity": [
+        {
+          "cutoff": "[0.00, 1.00]",
+          "units_retained": 4522,
+          "units_trimmed": 0,
+          "trimmed_share_pct": 0.0,
+          "estimated_effect_pct": 6.77,
+          "relative_drift_pct": 0.0
+        },
+        {
+          "cutoff": "[0.01, 0.99]",
+          "units_retained": 4522,
+          "units_trimmed": 0,
+          "trimmed_share_pct": 0.0,
+          "estimated_effect_pct": 6.77,
+          "relative_drift_pct": 0.0
+        },
+        {
+          "cutoff": "[0.05, 0.95]",
+          "units_retained": 4522,
+          "units_trimmed": 0,
+          "trimmed_share_pct": 0.0,
+          "estimated_effect_pct": 6.77,
+          "relative_drift_pct": 0.0
+        },
+        {
+          "cutoff": "[0.10, 0.90]",
+          "units_retained": 4522,
+          "units_trimmed": 0,
+          "trimmed_share_pct": 0.0,
+          "estimated_effect_pct": 6.77,
+          "relative_drift_pct": 0.0
+        }
+      ]
+    }
+  },
+  "production_dml_validation": {
+    "status": "VALIDATED",
+    "estimator_class": "LinearDML",
+    "total_records_evaluated": 10000,
+    "tau_10_summary": {
+      "mean_uplift_pct": 14.36,
+      "min_uplift_pct": -3.39,
+      "max_uplift_pct": 32.05,
+      "finite_values": true
+    },
+    "tau_20_summary": {
+      "mean_uplift_pct": 21.23,
+      "min_uplift_pct": 2.06,
+      "max_uplift_pct": 33.59,
+      "finite_values": true
+    },
+    "monotonicity_share_pct": 89.31,
+    "supports_confidence_intervals": true,
+    "passed": true
   }
 }

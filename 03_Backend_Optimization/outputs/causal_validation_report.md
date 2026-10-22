@@ -1,6 +1,6 @@
 # EconoCausal: Causal Inference Validation & Statistical Audit Report
 
-**Audit Timestamp**: 2026-10-18 11:17:36 UTC  
+**Audit Timestamp**: 2026-10-22 11:55:11 UTC  
 **Composite Causal Robustness Index**: `100.0%` (Validation Passed (Simulated Benchmark))  
 **Overall Audit Status**: **PASSED**  
 
@@ -43,7 +43,9 @@ Matching specification: **1:1 Nearest-Neighbor Caliper Matching** without replac
 
 ## 3. Causal Diagnostics & Sensitivity Refutations
 
-We subjected the estimated causal effects to four rigorous falsification stress-tests:
+We subjected the estimated causal effects to five falsification stress-tests for both promotional arms:
+
+### A. Arm ₹10 vs ₹0 Refutation Summary
 
 | Refutation Test | Benchmark Effect | Test Result | Tolerance / Criteria | Audit Verdict |
 | :--- | :---: | :---: | :---: | :---: |
@@ -51,16 +53,64 @@ We subjected the estimated causal effects to four rigorous falsification stress-
 | **Random Common Cause Refutation** | +14.22% | Drift: `0.16%` | Invariant (< 5% relative drift) | **PASS** |
 | **Data Subset Removal Refutation** | +14.22% | Drift: `0.03%` | Invariant (< 5% relative drift) | **PASS** |
 | **Positivity Overlap Trimming Sensitivity** | +14.22% | Drift: `0.17%` | Invariant (< 5% relative drift) | **PASS** |
+| **Monte Carlo Treatment Permutation Test** | +14.22% | Null CI: `[-2.12%, +2.02%]` | Reject H0 (p = 0.00200 < 0.05) | **PASS** |
 
-### Interpretations:
-1. **Placebo Treatment Test**: When treatment is randomly shuffled across shoppers, the estimated causal uplift drops from **+0.14%** to **+0.83%** (p = 0.477), proving that the model captures true causal impact rather than spurious correlation.
-2. **Unobserved Confounder Injection**: Adding random standard normal noise to the covariate set alters the estimated treatment effect by only **0.16%**, demonstrating robustness against unobserved features.
-3. **Data Subset Stability**: Re-estimating causal effects across 10 random 80% bootstrap sub-samples exhibits a narrow standard error of **0.0045**, confirming no single sample segment distorts the pricing policy.
-4. **Positivity Trimming**: Excluding extreme propensity scores in tails ($0.05 < P < 0.95$) alters the causal estimate by only **0.17%**, proving common support holds across the customer base.
+### B. Arm ₹20 vs ₹0 Refutation Summary
+
+| Refutation Test | Benchmark Effect | Test Result | Tolerance / Criteria | Audit Verdict |
+| :--- | :---: | :---: | :---: | :---: |
+| **Placebo Treatment Test** | +21.32% | Placebo: `+0.23%` (p=0.852) | Effect collapses to 0 (p > 0.05) | **PASS** |
+| **Random Common Cause Refutation** | +21.32% | Drift: `0.12%` | Invariant (< 5% relative drift) | **PASS** |
+| **Data Subset Removal Refutation** | +21.32% | Drift: `0.65%` | Invariant (< 5% relative drift) | **PASS** |
+| **Positivity Overlap Trimming Sensitivity** | +21.32% | Drift: `0.45%` | Invariant (< 5% relative drift) | **PASS** |
+| **Monte Carlo Treatment Permutation Test** | +21.32% | Null CI: `[-2.44%, +2.14%]` | Reject H0 (p = 0.00200 < 0.05) | **PASS** |
 
 ---
 
-## 4. Econometric Validation & Assumptions Review
+## 4. Unobserved Confounding Sensitivity Analysis
+
+Observational causal inference relies on unconfoundedness, which is fundamentally untestable from data alone.
+We report formal econometric sensitivity analyses quantifying the magnitude of hidden bias required to overturn conclusions:
+
+### A. Cinelli & Hazlett (2020) Partial-R² Robustness Values (Residualized OLS Estimand)
+
+| Treatment Arm | Observed ATE | Partial R² (Y ~ T \| X) | Robustness Value (RV_q=1) | Robustness Value (RV_alpha=0.05) |
+| :--- | :---: | :---: | :---: | :---: |
+| **₹10 Discount vs ₹0** | +14.22% | 1.73% | **12.42%** | **10.47%** |
+| **₹20 Discount vs ₹0** | +21.32% | 3.72% | **17.81%** | **15.95%** |
+
+> **Interpretation (₹10 Arm)**: An unobserved confounder U would need to explain at least 12.42% of the residual variance in both treatment assignment and purchase conversion to reduce the estimated treatment effect to zero. To render the effect statistically insignificant at alpha=0.05, U would need to explain 10.47% of the residual variance in both.
+
+### B. Rosenbaum Sensitivity Bounds on Matched Observational Pairs
+
+| Treatment Arm | Matched Pairs | Discordant Pairs | Critical Gamma Threshold (Gamma*) | Interpretation |
+| :--- | :---: | :---: | :---: | :--- |
+| **₹10 Discount vs ₹0** | 2,273 | 1,169 | **Gamma* = 1.7** | Hidden odds ratio must exceed 1.7 to explain effect. |
+| **₹20 Discount vs ₹0** | 2,088 | 1,067 | **Gamma* = 2.1** | Hidden odds ratio must exceed 2.1 to explain effect. |
+
+---
+
+## 5. Pairwise Positivity & Trimming Sensitivity Grid
+
+| Contrast | Propensity Range | Trim [0.01, 0.99] ATE | Trim [0.05, 0.95] ATE | Trim [0.10, 0.90] ATE |
+| :--- | :---: | :---: | :---: | :---: |
+| **₹10 Discount vs ₹0 Control** | [0.0103, 0.9307] | +14.22% (cut 0.0%) | +14.25% (cut 0.37%) | +14.28% (cut 3.13%) |
+| **₹20 Discount vs ₹0 Control** | [0.0021, 0.8926] | +21.33% (cut 0.01%) | +21.22% (cut 1.14%) | +21.03% (cut 5.61%) |
+| **₹20 Discount vs ₹10 Discount (Incremental)** | [0.1924, 0.8895] | +6.77% (cut 0.0%) | +6.77% (cut 0.0%) | +6.77% (cut 0.0%) |
+
+---
+
+## 6. Production EconML DML Estimator Verification
+
+- **Estimator Class**: `LinearDML` (Loaded read-only from `dml_model.joblib`)
+- **Arm ₹10 Mean CATE Uplift**: `+14.36%` (Range: `[-3.39%, 32.05%]`)
+- **Arm ₹20 Mean CATE Uplift**: `+21.23%` (Range: `[2.06%, 33.59%]`)
+- **Monotonicity Consistency**: `89.31%` of customers satisfy τ_20 >= τ_10
+- **Supports Confidence Intervals**: `True`
+
+---
+
+## 7. Econometric Assumptions Review & Scientific Disclosures
 
 - **Audit Status**: `PASSED`
 - **Verification Status**: `Validation Passed (Simulated Benchmark)`
