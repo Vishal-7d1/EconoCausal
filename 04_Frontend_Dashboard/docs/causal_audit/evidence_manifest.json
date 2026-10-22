@@ -1,0 +1,231 @@
+{
+  "manifest_version": "1.0.0",
+  "audit_phase": "Level 4 Phase 4.3: Causal Audit Reporting & Final Evidence Consolidation",
+  "generation_date": "2026-10-22T18:48:00+05:30",
+  "repository": "EconoCausal",
+  "branch": "main",
+  "baseline_commit": "be5ce180d12a9aeee94a881cf02ec19a9a727904",
+  "working_tree_status": "DIRTY (2 known uncommitted Phase 4.2.3 modifications preserved)",
+  "uncommitted_modifications": [
+    "03_Backend_Optimization/causal_validation.py",
+    "03_Backend_Optimization/test_validation.py"
+  ],
+  "protected_artifact_hashes": {
+    "02_Causal_ML/outputs/dml_model.joblib": {
+      "sha256": "ddf7ddd89a3c87ca023fadd128ae9fde08ad77125451e20541bd1d6ff2d2bb90",
+      "status": "VERIFIED_MATCH",
+      "description": "Fitted EconML LinearDML production estimator artifact (3-fold cross-fitting)"
+    },
+    "02_Causal_ML/outputs/dml_effect_predictions.csv": {
+      "sha256": "4e5c9f158da0a4084a54d2b64bba07da93be0fa2d2a054d7decfd11b8c04d4dc",
+      "status": "VERIFIED_MATCH",
+      "description": "Customer-level CATE predictions for Arm ₹10 (tau_hat_10) and Arm ₹20 (tau_hat_20)"
+    },
+    "03_Backend_Optimization/outputs/optimal_discount_allocations.csv": {
+      "sha256": "84f5d48f5914b1e35da4afbe7ec8262952a80e8853aa40a787b8e65d77687114",
+      "status": "VERIFIED_MATCH",
+      "description": "Optimal budget-constrained discount allocations generated via MILP/Greedy optimizer"
+    },
+    "01_Dataset_Analysis/cleaned_pricing_data.csv": {
+      "sha256": "423478e73126ebedf49a06d60a1223beb0c39b3d82be7991b5bb16c8fbed809c",
+      "status": "VERIFIED_MATCH",
+      "description": "Cleaned pre-treatment and observational pricing dataset (N=10,000)"
+    },
+    "01_Dataset_Analysis/ground_truth_eval.csv": {
+      "sha256": "EXCLUDED_FROM_INSPECTION",
+      "status": "ISOLATED_UNTOUCHED",
+      "isolation_guarantee": "Intentionally never opened, read, parsed, loaded, or evaluated during Phase 4.3 to preserve strict anti-leakage isolation."
+    }
+  },
+  "evidence_inventory": [
+    {
+      "path": "01_Dataset_Analysis/cleaned_pricing_data.csv",
+      "source_type": "dataset",
+      "action_taken": "read_safely",
+      "claim_supported": "10,000 customers, 9 pretreatment covariates, treatment discount_inr in {0, 10, 20}, observed_purchase in {0, 1}",
+      "evidence_status": "VERIFIED"
+    },
+    {
+      "path": "02_Causal_ML/train_dml.py",
+      "source_type": "code",
+      "action_taken": "read_safely",
+      "claim_supported": "EconML LinearDML and CausalForestDML training specifications, cross-fitting logic, nuisance LightGBM models",
+      "evidence_status": "VERIFIED"
+    },
+    {
+      "path": "02_Causal_ML/test_dml.py",
+      "source_type": "test",
+      "action_taken": "executed",
+      "claim_supported": "5 unit tests verifying anti-leakage safeguards, missing file handling, and artifact immutability",
+      "evidence_status": "VERIFIED"
+    },
+    {
+      "path": "02_Causal_ML/outputs/dml_model.joblib",
+      "source_type": "model",
+      "action_taken": "read_safely",
+      "claim_supported": "Production estimator class is LinearDML with discrete_treatment=True and 3-fold cross-fitting",
+      "evidence_status": "VERIFIED"
+    },
+    {
+      "path": "02_Causal_ML/outputs/dml_effect_predictions.csv",
+      "source_type": "output",
+      "action_taken": "read_safely",
+      "claim_supported": "10,000 individual CATE point estimates; mean tau_10=+14.36%, mean tau_20=+21.23%, monotonicity share=89.31%",
+      "evidence_status": "VERIFIED"
+    },
+    {
+      "path": "02_Causal_ML/dowhy_causal_graph.py",
+      "source_type": "code",
+      "action_taken": "read_safely",
+      "claim_supported": "Structural causal DAG specification and DoWhy refutation p-value extraction utility",
+      "evidence_status": "VERIFIED"
+    },
+    {
+      "path": "03_Backend_Optimization/causal_validation.py",
+      "source_type": "code",
+      "action_taken": "read_and_modified",
+      "claim_supported": "Propensity score matching (0.2 caliper), covariate balance diagnostics (|SMD| < 0.10), Cinelli-Hazlett and Rosenbaum bounds",
+      "evidence_status": "VERIFIED"
+    },
+    {
+      "path": "03_Backend_Optimization/test_validation.py",
+      "source_type": "test",
+      "action_taken": "executed_and_modified",
+      "claim_supported": "14 automated validation tests verifying balance, refutations, overlap trimming, and Rosenbaum one-sided continuity correction",
+      "evidence_status": "VERIFIED"
+    },
+    {
+      "path": "03_Backend_Optimization/test_optimizer.py",
+      "source_type": "test",
+      "action_taken": "executed",
+      "claim_supported": "13 optimization tests verifying budget constraints, solver parity, mutual exclusivity, and fallback attribution",
+      "evidence_status": "VERIFIED"
+    },
+    {
+      "path": "03_Backend_Optimization/outputs/causal_validation_summary.json",
+      "source_type": "report",
+      "action_taken": "read_safely",
+      "claim_supported": "Historical diagnostic results: SMD balance pass, refutation invariance, RV_q=1, and critical Gamma thresholds (1.7, 2.1)",
+      "evidence_status": "VERIFIED"
+    },
+    {
+      "path": "03_Backend_Optimization/outputs/causal_validation_report.md",
+      "source_type": "report",
+      "action_taken": "read_safely",
+      "claim_supported": "Executive markdown summary of PSM match rates, balance tables, falsification tests, and sensitivity values",
+      "evidence_status": "VERIFIED"
+    },
+    {
+      "path": "03_Backend_Optimization/outputs/optimal_discount_allocations.csv",
+      "source_type": "output",
+      "action_taken": "listed",
+      "claim_supported": "Protected baseline allocation table for 10,000 customers under ₹50,000 marketing budget cap",
+      "evidence_status": "VERIFIED"
+    }
+  ],
+  "regression_test_summary": {
+    "total_suites_executed": 3,
+    "total_tests_executed": 32,
+    "total_tests_passed": 32,
+    "total_tests_failed": 0,
+    "suite_breakdown": [
+      {
+        "suite": "03_Backend_Optimization/test_validation.py",
+        "tests_run": 14,
+        "tests_passed": 14,
+        "tests_failed": 0,
+        "execution_time_seconds": 11.87,
+        "status": "PASS"
+      },
+      {
+        "suite": "02_Causal_ML/test_dml.py",
+        "tests_run": 5,
+        "tests_passed": 5,
+        "tests_failed": 0,
+        "execution_time_seconds": 39.06,
+        "status": "PASS"
+      },
+      {
+        "suite": "03_Backend_Optimization/test_optimizer.py",
+        "tests_run": 13,
+        "tests_passed": 13,
+        "tests_failed": 0,
+        "execution_time_seconds": 22.39,
+        "status": "PASS"
+      }
+    ]
+  },
+  "verified_causal_benchmarks": {
+    "target_estimands": {
+      "treatment_variable": "discount_inr (0, 10, 20 INR)",
+      "outcome_variable": "observed_purchase (binary {0, 1})",
+      "contrast_10_vs_0": "CATE uplift tau_10(X) = E[Y(10) - Y(0) | X]",
+      "contrast_20_vs_0": "CATE uplift tau_20(X) = E[Y(20) - Y(0) | X]",
+      "scale": "Absolute change in purchase conversion probability"
+    },
+    "production_dml_cate": {
+      "model_type": "econml.dml.LinearDML",
+      "cross_fitting_folds": 3,
+      "mean_tau_hat_10_pct": 14.36,
+      "tau_hat_10_range_pct": [-3.39, 32.05],
+      "mean_tau_hat_20_pct": 21.23,
+      "tau_hat_20_range_pct": [2.06, 33.59],
+      "dosage_monotonicity_share_pct": 89.31,
+      "strict_monotonicity_share_pct": 89.19
+    },
+    "secondary_robinson_residualized_ols": {
+      "arm_10_ate_pct": 14.22,
+      "arm_20_ate_pct": 21.32,
+      "purpose": "Constant-effect baseline projection used for Cinelli-Hazlett sensitivity benchmarking"
+    },
+    "propensity_score_matching": {
+      "caliper": "0.20 * std(logit(propensity_score))",
+      "arm_10": {
+        "matched_pairs": 2273,
+        "treated_pool_size": 2371,
+        "match_rate_pct": 95.87,
+        "all_covariates_balanced": true,
+        "max_matched_abs_smd": 0.0181
+      },
+      "arm_20": {
+        "matched_pairs": 2088,
+        "treated_pool_size": 2151,
+        "match_rate_pct": 97.07,
+        "all_covariates_balanced": true,
+        "max_matched_abs_smd": 0.0163
+      }
+    },
+    "unobserved_confounding_sensitivity": {
+      "cinelli_hazlett": {
+        "arm_10": {
+          "partial_r2_treatment_outcome_pct": 1.73,
+          "robustness_value_q1_pct": 12.42,
+          "robustness_value_alpha_pct": 10.47
+        },
+        "arm_20": {
+          "partial_r2_treatment_outcome_pct": 3.72,
+          "robustness_value_q1_pct": 17.81,
+          "robustness_value_alpha_pct": 15.95
+        }
+      },
+      "rosenbaum_matched_pairs": {
+        "method": "Exact McNemar-scale normal approximation with one-sided discrete continuity correction",
+        "grid_step": 0.1,
+        "arm_10": {
+          "discordant_pairs_S": 1169,
+          "positive_discordant_pairs": 751,
+          "gamma_critical_first_grid_point": 1.7,
+          "p_at_gamma_1_6": 0.03070,
+          "p_at_gamma_1_7": 0.19052
+        },
+        "arm_20": {
+          "discordant_pairs_S": 1067,
+          "positive_discordant_pairs": 743,
+          "gamma_critical_first_grid_point": 2.1,
+          "p_at_gamma_2_0": 0.02148,
+          "p_at_gamma_2_1": 0.09857
+        }
+      }
+    }
+  }
+}

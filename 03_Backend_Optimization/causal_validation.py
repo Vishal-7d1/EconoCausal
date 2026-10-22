@@ -703,6 +703,7 @@ def compute_rosenbaum_bounds(
             "t_positive_rank_sum": 0.0,
             "gamma_critical": None,
             "sample_bounds": [],
+            "bounds_table": [],
             "interpretation": "No discordant pairs available to compute sensitivity bounds.",
         }
 
@@ -726,9 +727,8 @@ def compute_rosenbaum_bounds(
             e_t = float(n_discordant * p_plus)
             var_t = float(n_discordant * p_plus * (1.0 - p_plus))
             if var_t > 1e-9:
-                dev = n_pos - e_t
-                correction = 0.5 if dev > 0 else (-0.5 if dev < 0 else 0.0)
-                z = (dev - correction) / np.sqrt(var_t)
+                # One-sided upper tail continuity correction: P(T >= n_pos) continuous lower limit is (n_pos - 0.5)
+                z = (n_pos - e_t - 0.5) / np.sqrt(var_t)
                 p_upper = float(1.0 - stats.norm.cdf(z))
             else:
                 p_upper = 1.0 if n_pos <= e_t else 0.0
@@ -756,6 +756,7 @@ def compute_rosenbaum_bounds(
         "t_positive_rank_sum": float(round(t_pos, 1)),
         "gamma_critical": float(round(gamma_critical, 2)) if isinstance(gamma_critical, (int, float)) else f"> {gamma_max:.1f}",
         "sample_bounds": bounds_table[:10],
+        "bounds_table": bounds_table,
         "interpretation": (
             f"Under no hidden bias (Gamma = 1.0), p < 0.001. "
             f"An unobserved confounder would need to increase the odds of treatment assignment by a factor of "

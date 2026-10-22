@@ -38,6 +38,7 @@ from typing import Any
 
 import numpy as np
 import pandas as pd
+from scipy import stats
 
 # Add repo modules to path for direct testing
 REPO_ROOT = Path(__file__).resolve().parent.parent
@@ -554,6 +555,71 @@ class TestCausalValidation(unittest.TestCase):
         for i in range(len(p_mix) - 1):
             self.assertLessEqual(p_mix[i], p_mix[i + 1] + 1e-7)
 
+    def test_14_rosenbaum_continuity_correction_and_exact_binomial_parity(self):
+        """
+        Verify mathematical correctness of the one-sided upper-tail continuity correction
+        and benchmark against exact binomial calculations. This test deterministically fails
+        under the pre-fix two-sided shrinkage formula (which set dev=0 -> correction=0, or dev<0 -> +0.5).
+        """
+        # Test 1: Full-grid monotonicity across E[T] >= n_pos transition
+        # 35 positive, 15 negative (S = 50). E[T] = 50 * Gamma / (1 + Gamma).
+        # At Gamma=2.30: E[T] = 34.85 < 35 (dev > 0)
+        # At Gamma=2.35: E[T] = 35.07 > 35 (dev < 0)
+        # The pre-fix formula inverted the continuity correction sign at dev < 0,
+        # dropping p from 0.54270 at Gamma=2.30 down to 0.44771 at Gamma=2.35.
+        df_t35 = pd.DataFrame({"observed_purchase": [1] * 35 + [0] * 15})
+        df_c35 = pd.DataFrame({"observed_purchase": [0] * 35 + [1] * 15})
+        res35 = compute_rosenbaum_bounds(df_t35, df_c35, gamma_max=3.0, gamma_step=0.05)
+        all_p = [pt["p_upper_bound"] for pt in res35["bounds_table"]]
+        for i in range(len(all_p) - 1):
+            self.assertLessEqual(
+                all_p[i],
+                all_p[i + 1] + 1e-7,
+                f"Monotonicity violation between Gamma={res35['bounds_table'][i]['gamma']} "
+                f"and Gamma={res35['bounds_table'][i+1]['gamma']}: {all_p[i]} > {all_p[i+1]}"
+            )
+        # Specific check at the transition point (fails on pre-fix code: 0.54270 > 0.44771)
+        pt_map = {pt["gamma"]: pt["p_upper_bound"] for pt in res35["bounds_table"]}
+        self.assertGreater(pt_map[2.35], pt_map[2.30], "p(Gamma=2.35) must exceed p(Gamma=2.30)")
+        self.assertAlmostEqual(pt_map[2.35], 0.57048, places=4)
+
+        # Test 2: Continuity correction when dev == 0 (n_pos == S/2 at Gamma=1.0)
+        # 25 positive, 25 negative (S = 50). E[T] = 25.0, var = 12.5.
+        # Exact Binomial: P(T >= 25) = 0.55614.
+        # Corrected Normal: z = (25 - 0.5 - 25) / sqrt(12.5) = -0.14142 -> p = 0.55627.
+        # Pre-fix code gave exactly 0.50000 (dev=0 -> correction=0).
+        df_t25 = pd.DataFrame({"observed_purchase": [1] * 25 + [0] * 25})
+        df_c25 = pd.DataFrame({"observed_purchase": [0] * 25 + [1] * 25})
+        res25 = compute_rosenbaum_bounds(df_t25, df_c25, gamma_max=1.0, gamma_step=0.1)
+        p_25 = res25["sample_bounds"][0]["p_upper_bound"]
+        self.assertGreater(p_25, 0.50, "p-value at n_pos=S/2 under Gamma=1.0 must be > 0.50 due to discrete mass at 25")
+        self.assertAlmostEqual(p_25, 0.55627, places=4)
+
+        # Test 3: Continuity correction when dev < 0 (n_pos < S/2 at Gamma=1.0)
+        # 24 positive, 26 negative (S = 50). E[T] = 25.0, var = 12.5.
+        # Exact Binomial: P(T >= 24) = 0.66408.
+        # Corrected Normal: z = (24 - 0.5 - 25) / sqrt(12.5) = -0.42426 -> p = 0.66431.
+        # Pre-fix code gave 0.55627 (dev=-1 -> correction=-0.5 -> dev - (-0.5) = -0.5).
+        df_t24 = pd.DataFrame({"observed_purchase": [1] * 24 + [0] * 26})
+        df_c24 = pd.DataFrame({"observed_purchase": [0] * 24 + [1] * 26})
+        res24 = compute_rosenbaum_bounds(df_t24, df_c24, gamma_max=1.0, gamma_step=0.1)
+        p_24 = res24["sample_bounds"][0]["p_upper_bound"]
+        self.assertGreater(p_24, 0.60, "p-value at n_pos=24/50 must reflect correct upper-tail continuity correction")
+        self.assertAlmostEqual(p_24, 0.66431, places=4)
+
+        # Test 4: Parity with Exact Binomial across small sample S=10
+        # 8 positive, 2 negative. Verify asymptotic normal approx error bounded <= 0.025 across all Gamma in [1.0, 2.5]
+        df_t8 = pd.DataFrame({"observed_purchase": [1] * 8 + [0] * 2})
+        df_c8 = pd.DataFrame({"observed_purchase": [0] * 8 + [1] * 2})
+        res8 = compute_rosenbaum_bounds(df_t8, df_c8, gamma_max=2.5, gamma_step=0.1)
+        for pt in res8["bounds_table"]:
+            g = pt["gamma"]
+            p_norm = pt["p_upper_bound"]
+            p_plus = g / (1.0 + g)
+            p_exact = float(round(stats.binom.sf(7, 10, p_plus), 5))
+            self.assertLessEqual(abs(p_norm - p_exact), 0.025, f"Approximation error at Gamma={g} exceeded 0.025")
+
 
 if __name__ == "__main__":
     unittest.main()
+
