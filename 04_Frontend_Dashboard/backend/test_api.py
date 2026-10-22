@@ -253,7 +253,17 @@ class TestDashboardAPI(unittest.TestCase):
         self.assertIn("arm_10", data)
         self.assertIn("love_plot_data", data)
         self.assertEqual(len(data["love_plot_data"]["covariates"]), 9)
-        self.assertEqual(len(data["arm_10"]["refutations"]), 4)
+        # Verify exactly 5 refutations and required diagnostic types under Level 4 contract
+        refutations = data["arm_10"]["refutations"]
+        self.assertEqual(len(refutations), 5)
+        refutation_types = [r["refutation_type"] for r in refutations]
+        self.assertIn("Placebo Treatment Test", refutation_types)
+        self.assertIn("Random Common Cause Refutation", refutation_types)
+        self.assertIn("Data Subset Removal Refutation", refutation_types)
+        self.assertIn("Positivity Overlap Trimming Sensitivity", refutation_types)
+        self.assertIn("Model-Based Residual Permutation Diagnostic", refutation_types)
+        for r in refutations:
+            self.assertEqual(r["status"], "PASS")
 
     def test_14_dataset_sample_endpoint(self):
         """Verify sample dataset endpoint returns clean pricing records without leakage."""
@@ -269,7 +279,7 @@ class TestDashboardAPI(unittest.TestCase):
                 self.assertFalse(key.startswith("true_"), f"Leakage in sample dataset: {key}")
 
     def test_15_export_report_endpoint(self):
-        """Verify report export endpoint returns executive audit report content."""
+        """Verify report export endpoint returns executive audit report content with unified contract."""
         resp = self.client.get("/api/report/export")
         self.assertEqual(resp.status_code, 200)
         data = resp.json()
@@ -278,6 +288,12 @@ class TestDashboardAPI(unittest.TestCase):
         self.assertIn("markdown_report", data)
         self.assertIn("summary", data)
         self.assertIn("validation", data)
+        self.assertIn("optimal_policy", data)
+        self.assertIn("causal_robustness", data)
+        self.assertIn("psm_summary", data)
+        self.assertEqual(data["report_version"], "2.1.0")
+        self.assertEqual(data["causal_robustness"]["refutations_passed"], 5)
+        self.assertEqual(data["causal_robustness"]["refutations_total"], 5)
 
     def test_16_charts_qini_curve_structure(self):
         """Verify that charts endpoint provides verified Qini cumulative uplift curve data."""

@@ -1,35 +1,59 @@
 # EconoCausal — Comprehensive Test Execution & Reproducibility Report
 
-**Date of Execution:** October 2026  
+**Report Version:** 2.1.0 (Level 4 Phase 4.5 Targeted API Contract Repair & Safe Regression Closure)  
+**Date of Current Execution:** October 22, 2026  
+**Commit Baseline:** `eeb66240ecdb5788e10a53c94fbf3ccd6a7eef8a`  
 **Lead Test Engineer / Auditor:** Vishal Yadav (Data Associate L1 Intern, Infotact Solutions)  
 **Project Domain:** Causal Machine Learning, Double Machine Learning (DML), MILP Optimization & Full-Stack System  
 **Test Suite Coverage:** Unit, Integration, Econometric Diagnostics, Mathematical Optimality, Security, Frontend Build  
-**Overall Verdict:** `VERIFIED PASS` (100% Passed, 0 Failures, 0 Skipped, 0 Fabrications)
+**Current Phase 4.5 Verdict:** `VERIFIED PASS — API CONTRACT REPAIRED & SAFE REGRESSION CLOSED (34/34 API TESTS PASS, DML SAFELY ISOLATED)`
 
 ---
 
 ## 1. Executive Test Summary
 
-All automated test suites across the EconoCausal project were executed in the native project environment (Windows 11, Python 3.11.4 64-bit, Node.js v22.14.0, Vite 8.3.4, React 19.2.8). Every module was tested for:
-1. Handling of missing files and invalid configurations.
-2. Anti-leakage safeguards (blocking execution if counterfactual or post-treatment columns are injected).
-3. Statistical accuracy thresholds against simulated ground truth.
-4. Mathematical optimality and budget feasibility.
-5. High-concurrency REST API contract enforcement, input validation, and CORS security.
-6. Production bundling and frontend compilation.
+All automated test suites across the EconoCausal project were reviewed and executed against commit `eeb66240ecdb5788e10a53c94fbf3ccd6a7eef8a` in the native Windows 11 / Python 3.11 environment. 
 
-### Aggregate Test Results Scorecard
+### Current Level 4 Phase 4.5 Execution Scorecard (October 22, 2026)
+
+> [!NOTE]
+> **Test Count Accounting Clarification:** The Phase 4.5 scorecard reflects **64 distinct test cases**, **65 total test executions**, **65 passing executions**, and **2 safety-blocked DML test cases**. Specifically, targeted API test `test_13_validation_endpoint` was run separately first to isolate and verify the contract fix (1 test execution), and was subsequently executed again as part of the 34-test full API suite `test_api.py` for comprehensive regression verification (34 test executions). Together with 3 safe DML tests, 14 econometric validation tests, and 13 MILP optimization tests, this yields $1 + 34 + 3 + 14 + 13 = 65$ total test executions across 64 distinct automated test cases (all 65 passing).
+
+| Module & Test Suite | Test Type | Exact Command | Exit Code | Tests | Pass | Fail | Skip / Blocked | Status / Safety Classification | Duration | Notes / Evidence |
+| :--- | :--- | :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :--- |
+| **04. Backend REST API (Targeted)** | Validation Endpoint Contract | `python -m unittest 04_Frontend_Dashboard.backend.test_api.TestDashboardAPI.test_13_validation_endpoint` | `0` | 1 | 1 | 0 | 0 | `VERIFIED PASS` | 0.028s | Targeted repair verified: asserts 5 refutations, 5 diagnostic types, and status='PASS'. Executed separately first. |
+| **04. Backend REST API (Full Suite)** | Endpoints, CORS & Safeguards | `python -m unittest 04_Frontend_Dashboard/backend/test_api.py` | `0` | 34 | 34 | 0 | 0 | `VERIFIED PASS` | 59.87s | Full API suite cleanly passes with 0 regressions; re-executes test_13 as part of full suite. |
+| **02. Causal ML (Safe Subset)** | Anti-leakage, CLI & Artifacts | `python -m unittest 02_Causal_ML.test_dml.TestDoubleMachineLearning.test_01_missing_file_handling 02_Causal_ML.test_dml.TestDoubleMachineLearning.test_02_anti_leakage_safeguard 02_Causal_ML.test_dml.TestDoubleMachineLearning.test_05_production_artifacts_unmodified` | `0` | 3 | 3 | 0 | 0 | `VERIFIED PASS` | 12.39s | Demonstrably safe, non-retraining, and ground-truth-free tests pass cleanly. |
+| **02. Causal ML (Unsafe Tests)** | Retraining & Ground Truth Eval | `python -m unittest 02_Causal_ML.test_dml.TestDoubleMachineLearning.test_03_dml_training_and_artifacts 02_Causal_ML.test_dml.TestDoubleMachineLearning.test_04_causal_forest_dml_execution` | — | 2 | 0 | 0 | 2 | `BLOCKED_BY_SAFETY_CONSTRAINT` | — | Withheld: tests invoke `train_dml.py --eval-data ground_truth_eval.csv`, violating isolation rules. |
+| **03. Econometric Validation** | PSM, Balance & Refutations | `python -B -m unittest 03_Backend_Optimization/test_validation.py` | `0` | 14 | 14 | 0 | 0 | `VERIFIED PASS` | 11.55s | All 14 tests pass, including Rosenbaum test_14 exact binomial parity. Bytecode untouched (-B flag). |
+| **03. MILP Optimization** | Deterministic & Edge Cases | `python -m unittest 03_Backend_Optimization/test_optimizer.py` | `0` | 13 | 13 | 0 | 0 | `VERIFIED PASS` | 22.43s | All 13 tests pass, including test_13 solver fallback attribution. |
+| **PHASE 4.5 VERIFIED TOTALS** | **Executable Safe Test Suite** | *Executed via Python 3.11 unittest* | **`0`** | **64 distinct (65 runs)** | **65** | **0** | **2 (Blocked)** | **`106.27s`** | **`64 DISTINCT TEST CASES, 65 EXECUTIONS, 65 PASSING, 2 BLOCKED`** |
+
+---
+
+### Historical Phase 4.4 Execution Scorecard (October 22, 2026)
+
+| Module & Test Suite | Test Type | Exact Command | Exit Code | Tests | Pass | Fail | Status / Safety Classification | Duration | Notes / Root Cause |
+| :--- | :--- | :--- | :---: | :---: | :---: | :---: | :---: | :---: | :--- |
+| **03. Econometric Validation** | PSM, Balance & Refutations | `python -m unittest "03_Backend_Optimization/test_validation.py"` | `0` | 14 | 14 | 0 | `VERIFIED PASS` | 11.46s | All 14 tests pass, including Rosenbaum test_14 exact binomial parity. |
+| **03. MILP Optimization** | Deterministic & Edge Cases | `python -m unittest "03_Backend_Optimization/test_optimizer.py"` | `0` | 13 | 13 | 0 | `VERIFIED PASS` | 22.83s | All 13 tests pass, including test_13 solver fallback attribution. |
+| **02. Causal ML** | DML Pipeline & PEHE | `python -m unittest "02_Causal_ML/test_dml.py"` | — | 5 | 0 | 0 | `NOT RUN — SAFETY BLOCKER` | — | Blocked: `test_03` and `test_04` load quarantined `ground_truth_eval.csv` and retrain DML models. |
+| **04. Backend REST API** | Endpoints, CORS & Safeguards | `python -m unittest "04_Frontend_Dashboard/backend/test_api.py"` | `1` | 34 | 33 | 1 | `REGRESSION IDENTIFIED` | 57.20s | 33/34 passed. 1 failure in `test_13`: asserts 4 refutations, but Phase 4.2 expanded suite to 5 (`5 != 4`). |
+
+---
+
+### Historical Baseline Execution Scorecard (Level 1–3 Initial Submission)
 
 | Module & Test Suite | Test Type | Exact Command | Exit Code | Tests | Pass | Fail | Skip | Duration | Status |
 | :--- | :--- | :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
-| **01. Dataset & EDA** | Integrity & Leakage | `python "01_Dataset_Analysis/inspect_dataset.py" --path "01_Dataset_Analysis/synthetic_pricing_data.csv"` | `0` | 1 | 1 | 0 | 0 | 3.8s | `VERIFIED PASS` |
-| **02. Causal ML** | DML Pipeline & PEHE | `python -m unittest "02_Causal_ML/test_dml.py"` | `0` | 4 | 4 | 0 | 0 | 46.0s | `VERIFIED PASS` |
-| **03. Econometric Validation** | PSM, Balance & Refutations | `python -m unittest "03_Backend_Optimization/test_validation.py"` | `0` | 5 | 5 | 0 | 0 | 7.0s | `VERIFIED PASS` |
-| **03. MILP Optimization** | Deterministic & Edge Cases | `python -m unittest "03_Backend_Optimization/test_optimizer.py"` | `0` | 12 | 12 | 0 | 0 | 26.3s | `VERIFIED PASS` |
-| **04. Backend REST API** | Endpoints, CORS & Safeguards | `python -m unittest "04_Frontend_Dashboard/backend/test_api.py"` | `0` | 17 | 17 | 0 | 0 | 7.0s | `VERIFIED PASS` |
-| **04. Frontend Linter** | Oxlint Code Quality | `npm run lint` (in `04_Frontend_Dashboard/`) | `0` | 4 files | 4 | 0 | 0 | 0.2s | `VERIFIED PASS` |
-| **04. Frontend Production Build** | Vite Production Bundle | `npm run build` (in `04_Frontend_Dashboard/`) | `0` | 19 modules | 19 | 0 | 0 | 0.5s | `VERIFIED PASS` |
-| **TOTALS** | **End-to-End Test Suite** | *7 Automated Execution Stages* | **`0`** | **43** | **43** | **0** | **0** | **~90.8s** | **`VERIFIED PASS`** |
+| **01. Dataset & EDA** | Integrity & Leakage | `python "01_Dataset_Analysis/inspect_dataset.py" --path "01_Dataset_Analysis/synthetic_pricing_data.csv"` | `0` | 1 | 1 | 0 | 0 | 3.8s | `VERIFIED PASS (Historical)` |
+| **02. Causal ML** | DML Pipeline & PEHE | `python -m unittest "02_Causal_ML/test_dml.py"` | `0` | 4 | 4 | 0 | 0 | 46.0s | `VERIFIED PASS (Historical)` |
+| **03. Econometric Validation** | PSM, Balance & Refutations | `python -m unittest "03_Backend_Optimization/test_validation.py"` | `0` | 5 | 5 | 0 | 0 | 7.0s | `VERIFIED PASS (Historical)` |
+| **03. MILP Optimization** | Deterministic & Edge Cases | `python -m unittest "03_Backend_Optimization/test_optimizer.py"` | `0` | 12 | 12 | 0 | 0 | 26.3s | `VERIFIED PASS (Historical)` |
+| **04. Backend REST API** | Endpoints, CORS & Safeguards | `python -m unittest "04_Frontend_Dashboard/backend/test_api.py"` | `0` | 17 | 17 | 0 | 0 | 7.0s | `VERIFIED PASS (Historical)` |
+| **04. Frontend Linter** | Oxlint Code Quality | `npm run lint` (in `04_Frontend_Dashboard/`) | `0` | 4 files | 4 | 0 | 0 | 0.2s | `VERIFIED PASS (Historical)` |
+| **04. Frontend Production Build** | Vite Production Bundle | `npm run build` (in `04_Frontend_Dashboard/`) | `0` | 19 modules | 19 | 0 | 0 | 0.5s | `VERIFIED PASS (Historical)` |
+| **HISTORICAL TOTALS** | **End-to-End Test Suite** | *7 Automated Execution Stages* | **`0`** | **43** | **43** | **0** | **0** | **~90.8s** | **`VERIFIED PASS (Historical)`** |
 
 ---
 
@@ -105,6 +129,90 @@ All automated test suites across the EconoCausal project were executed in the na
     - `dist/index.html` (1.21 kB)
     - `dist/assets/index-3gRQOGpm.css` (59.81 kB │ gzip: 11.01 kB)
     - `dist/assets/index-B4i8SEmW.js` (295.79 kB │ gzip: 87.07 kB)
+
+### 2.7 Phase 4.4 Fresh Execution Audit Details (October 22, 2026)
+
+1. **`03_Backend_Optimization/test_validation.py`:**
+   - **Command:** `python -m unittest 03_Backend_Optimization/test_validation.py`
+   - **Result:** `EXIT 0` (14 passed in 11.46s).
+   - **Key Assertions:** Verified 1:1 PSM caliper matching rate (>95%), post-match $|SMD| < 0.022$, 5 refutation bounds, overlap trimming invariance, Cinelli-Hazlett sensitivity, and deterministic Rosenbaum continuity correction (`test_14`) with exact binomial parity.
+
+2. **`03_Backend_Optimization/test_optimizer.py`:**
+   - **Command:** `python -m unittest 03_Backend_Optimization/test_optimizer.py`
+   - **Result:** `EXIT 0` (13 passed in 22.83s).
+   - **Key Assertions:** Verified nominal and redeemed budget caps, mutual exclusivity, deterministic small-instance MILP vs exhaustive search parity, negative budget handling, and `test_13` automatic greedy fallback attribution.
+
+3. **`02_Causal_ML/test_dml.py`:**
+   - **Status:** `NOT RUN — SAFETY BLOCKER`
+   - **Safety Blocker Details:** Tests `test_03` and `test_04` unconditionally invoke `train_dml.py --eval-data ground_truth_eval.csv`, which retrains DML models and loads/evaluates the quarantined ground-truth benchmark dataset `01_Dataset_Analysis/ground_truth_eval.csv`. In accordance with non-negotiable anti-leakage isolation rules, execution of this suite was withheld.
+
+4. **`04_Frontend_Dashboard/backend/test_api.py`:**
+   - **Command:** `python -m unittest 04_Frontend_Dashboard/backend/test_api.py`
+   - **Result:** `EXIT 1` (33 passed, 1 failed in 57.20s).
+   - **Failure Analysis:** `test_13_validation_endpoint` failed with `AssertionError: 5 != 4`.
+   - **Root Cause:** In Level 4 Phase 4.2 / 4.2.2, the econometric refutation suite in `causal_validation.py` was expanded from 4 to 5 diagnostics by adding the Model-Based Residual Permutation Diagnostic. When `causal_validation_summary.json` is synchronized with the latest Phase 4.2 code, `len(data["arm_10"]["refutations"])` evaluates to 5. The legacy test assertion in `test_api.py:L256` (`self.assertEqual(len(data["arm_10"]["refutations"]), 4)`) predates Phase 4.2. All other 33 endpoints, simulations, and anti-leakage tests passed.
+
+---
+
+### 2.8 Phase 4.5 Targeted Contract Repair & Safe Regression Details (October 22, 2026)
+
+1. **Targeted Repair of `/api/validation` Contract in `04_Frontend_Dashboard/backend/test_api.py`:**
+   - **Target Test:** `test_13_validation_endpoint`
+   - **Pre-Repair Defect:** Outdated assertion `self.assertEqual(len(data["arm_10"]["refutations"]), 4)` expecting 4 diagnostics.
+   - **Contract Justification:** The Level 4 refutation contract in `causal_validation.py` defines exactly 5 refutations (`Placebo Treatment Test`, `Random Common Cause Refutation`, `Data Subset Removal Refutation`, `Positivity Overlap Trimming Sensitivity`, and `Model-Based Residual Permutation Diagnostic`). The test assertion was updated to explicitly assert `len(refutations) == 5`, verify all 5 named diagnostic types are present, and verify `status == 'PASS'` across all 5 refutations.
+   - **Targeted Test Execution Command:** `python -m unittest 04_Frontend_Dashboard.backend.test_api.TestDashboardAPI.test_13_validation_endpoint`
+   - **Result:** `EXIT 0` (1 passed in 0.028s).
+   - **Execution Accounting Context:** This targeted test was run in isolation to verify the contract repair first, and was subsequently re-executed as part of the 34-test full API suite below.
+
+2. **Full API Suite Regression Verification (`test_api.py`):**
+   - **Command:** `python -m unittest 04_Frontend_Dashboard/backend/test_api.py`
+   - **Result:** `EXIT 0` (34 passed, 0 failed in 59.87s).
+   - **Outcome:** The single regression from Phase 4.4 is completely resolved. All 34 API endpoints, data filtering, in-memory simulations, and anti-leakage safeguards pass (accounting for 35 total API test executions across 34 distinct API test cases).
+
+3. **Safe DML Regression Verification (`02_Causal_ML/test_dml.py`):**
+   - **Safe Command:** `python -m unittest 02_Causal_ML.test_dml.TestDoubleMachineLearning.test_01_missing_file_handling 02_Causal_ML.test_dml.TestDoubleMachineLearning.test_02_anti_leakage_safeguard 02_Causal_ML.test_dml.TestDoubleMachineLearning.test_05_production_artifacts_unmodified`
+   - **Result:** `EXIT 0` (3 passed in 12.39s).
+   - **Safety Boundary & Blocked Tests:** `test_03_dml_training_and_artifacts` and `test_04_causal_forest_dml_execution` remain marked `BLOCKED_BY_SAFETY_CONSTRAINT`. Both tests invoke `train_dml.py --eval-data ground_truth_eval.csv`, which triggers model refitting and loads/evaluates the quarantined ground-truth benchmark file `01_Dataset_Analysis/ground_truth_eval.csv`. The safe subset confirms missing file handling, anti-leakage interception, and production artifact integrity without violating isolation rules.
+
+4. **Module 03 Optimization Suite Verification (`test_optimizer.py`):**
+   - **Command:** `python -m unittest 03_Backend_Optimization/test_optimizer.py`
+   - **Result:** `EXIT 0` (13 passed in 22.43s).
+   - **Outcome:** All 13 optimization tests pass deterministically.
+
+5. **Module 03 Econometric Validation Suite Verification (`test_validation.py`):**
+   - **Command:** `python -B -m unittest 03_Backend_Optimization/test_validation.py`
+   - **Result:** `EXIT 0` (14 passed in 11.55s).
+   - **Outcome:** All 14 tests pass. Executed with `-B` flag to guarantee zero bytecode generation or modification of existing `.pyc` files.
+
+---
+
+### 2.9 Protected Artifact Integrity, Rosenbaum Grid Alignment & Bytecode Audit
+
+1. **Cryptographic Hash Verification (4 Readable Protected Assets):**
+   Recomputed via SHA-256 against established baseline hashes:
+   - `02_Causal_ML/outputs/dml_model.joblib`:
+     * SHA-256: `ddf7ddd89a3c87ca023fadd128ae9fde08ad77125451e20541bd1d6ff2d2bb90` (`MATCH - IMMUTABLE`)
+   - `02_Causal_ML/outputs/dml_effect_predictions.csv`:
+     * SHA-256: `4e5c9f158da0a4084a54d2b64bba07da93be0fa2d2a054d7decfd11b8c04d4dc` (`MATCH - IMMUTABLE`)
+   - `03_Backend_Optimization/outputs/optimal_discount_allocations.csv`:
+     * SHA-256: `84f5d48f5914b1e35da4afbe7ec8262952a80e8853aa40a787b8e65d77687114` (`MATCH - IMMUTABLE`)
+   - `01_Dataset_Analysis/cleaned_pricing_data.csv`:
+     * SHA-256: `423478e73126ebedf49a06d60a1223beb0c39b3d82be7991b5bb16c8fbed809c` (`MATCH - IMMUTABLE`)
+
+2. **Ground-Truth File Quarantine Status:**
+   - `01_Dataset_Analysis/ground_truth_eval.csv`: Excluded from inspection, reading, parsing, or hashing in accordance with strict anti-leakage isolation rules. Never accessed or loaded during Phase 4.5.
+
+3. **Bytecode File Audit (`03_Backend_Optimization/__pycache__/test_validation.cpython-311.pyc`):**
+   - Length: 40,877 bytes
+   - Timestamp: October 22, 2026, 19:04:37 (Pre-existing modification generated during Phase 4.4 test run)
+   - Status: Preserved untouched. Not deleted, restored, or overwritten. Distinguished from Phase 4.5 actions.
+
+4. **Rosenbaum Bounds Grid Parity & Critical Threshold Alignment:**
+   - Both `causal_validation_summary.json` and `causal_validation_report.md` agree exactly on the 21-point Gamma grid ($\Gamma \in [1.0, 3.0]$ in steps of 0.1).
+   - Configured critical grid thresholds:
+     * Arm ₹10: $\Gamma^* = 1.7$ (1,169 discordant pairs, first grid point where upper bound $p > 0.05$).
+     * Arm ₹20: $\Gamma^* = 2.1$ (1,067 discordant pairs, first grid point where upper bound $p > 0.05$).
+   - Scientific Disclosure: Configured grid thresholds are documented as discrete grid boundaries, not continuous mathematical tipping points.
 
 ---
 

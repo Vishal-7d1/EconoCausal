@@ -1,6 +1,6 @@
 # EconoCausal: Causal Inference Validation & Statistical Audit Report
 
-**Audit Timestamp**: 2026-10-22 11:55:11 UTC  
+**Audit Timestamp**: 2026-10-22 13:43:23 UTC  
 **Composite Causal Robustness Index**: `100.0%` (Validation Passed (Simulated Benchmark))  
 **Overall Audit Status**: **PASSED**  
 
@@ -53,7 +53,7 @@ We subjected the estimated causal effects to five falsification stress-tests for
 | **Random Common Cause Refutation** | +14.22% | Drift: `0.16%` | Invariant (< 5% relative drift) | **PASS** |
 | **Data Subset Removal Refutation** | +14.22% | Drift: `0.03%` | Invariant (< 5% relative drift) | **PASS** |
 | **Positivity Overlap Trimming Sensitivity** | +14.22% | Drift: `0.17%` | Invariant (< 5% relative drift) | **PASS** |
-| **Monte Carlo Treatment Permutation Test** | +14.22% | Null CI: `[-2.12%, +2.02%]` | Reject H0 (p = 0.00200 < 0.05) | **PASS** |
+| **Model-Based Residual Permutation Diagnostic** | +14.22% | Null CI: `[-2.12%, +2.02%]` | Reject H0 (p = 0.00200 < 0.05) | **PASS** |
 
 ### B. Arm ₹20 vs ₹0 Refutation Summary
 
@@ -63,7 +63,7 @@ We subjected the estimated causal effects to five falsification stress-tests for
 | **Random Common Cause Refutation** | +21.32% | Drift: `0.12%` | Invariant (< 5% relative drift) | **PASS** |
 | **Data Subset Removal Refutation** | +21.32% | Drift: `0.65%` | Invariant (< 5% relative drift) | **PASS** |
 | **Positivity Overlap Trimming Sensitivity** | +21.32% | Drift: `0.45%` | Invariant (< 5% relative drift) | **PASS** |
-| **Monte Carlo Treatment Permutation Test** | +21.32% | Null CI: `[-2.44%, +2.14%]` | Reject H0 (p = 0.00200 < 0.05) | **PASS** |
+| **Model-Based Residual Permutation Diagnostic** | +21.32% | Null CI: `[-2.44%, +2.14%]` | Reject H0 (p = 0.00200 < 0.05) | **PASS** |
 
 ---
 
