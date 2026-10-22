@@ -500,7 +500,8 @@ def evaluate_policy_performance(
     margin_ratio: float = 0.30,
     total_budget: float = 50000.0,
     policy_name: str = "DML Optimal Policy",
-    budget_type: str = "allocated"
+    budget_type: str = "allocated",
+    objective: str = "max_profit"
 ) -> Dict[str, Any]:
     """
     Calculate comprehensive business and causal performance metrics for an allocation policy.
@@ -551,6 +552,7 @@ def evaluate_policy_performance(
 
     return {
         "policy_name": policy_name,
+        "objective": objective,
         "total_budget": round(total_budget, 2),
         "allocated_budget": round(allocated_budget, 2),
         "nominal_coupon_liability": round(nominal_coupon_liability, 2),
@@ -944,7 +946,7 @@ def main() -> int:
     opt_perf = evaluate_policy_performance(
         df, w10, w20, p0_hat, margin_ratio=args.margin_ratio,
         total_budget=args.budget, policy_name="DML Causal Optimal Policy",
-        budget_type=args.budget_type
+        budget_type=args.budget_type, objective=args.objective
     )
 
     print_banner("OPTIMIZATION RESULTS SUMMARY")

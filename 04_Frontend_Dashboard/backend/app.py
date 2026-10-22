@@ -13,20 +13,24 @@ Guarantees:
 
 from __future__ import annotations
 
+import collections
 import io
 import json
 import math
 import os
 import sys
+import threading
 import time
+import uuid
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
 import pandas as pd
 from fastapi import FastAPI, HTTPException, Query, Request, status, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel, Field
+from fastapi.responses import Response
+from pydantic import BaseModel, Field, field_validator
 
 from dml_service import (
     CausalDMLService,
@@ -75,12 +79,133 @@ _active_dataset_info: Dict[str, Any] = {
 }
 
 
+class BaselineConversionCache:
+    """
+    Thread-safe in-memory cache for the observable baseline conversion model p0_hat.
+    Avoids refitting LogisticRegression on identical training data while guaranteeing
+    exact index-by-index customer ID alignment and automatic invalidation on dataset changes.
+    """
+    def __init__(self):
+        self._lock = threading.Lock()
+        self._cached_p0_hat: Optional[np.ndarray] = None
+        self._cached_customer_ids: Optional[np.ndarray] = None
+        self._cached_fingerprint: Optional[Tuple[Any, ...]] = None
+        self._cached_merged_df: Optional[pd.DataFrame] = None
+
+    def get_or_fit(
+        self,
+        cleaned_path: Path,
+        predictions_path: Path,
+        seed: int = 42,
+        active_dataset_info: Optional[Dict[str, Any]] = None,
+    ) -> Tuple[pd.DataFrame, np.ndarray, bool]:
+        """
+        Retrieves cached (df, p0_hat) or fits the observable control-group model.
+        Returns:
+            Tuple of (df, p0_hat, was_cached).
+        """
+        cleaned_mtime = cleaned_path.stat().st_mtime_ns if cleaned_path.exists() else 0
+        cleaned_size = cleaned_path.stat().st_size if cleaned_path.exists() else 0
+        preds_mtime = predictions_path.stat().st_mtime_ns if predictions_path.exists() else 0
+        preds_size = predictions_path.stat().st_size if predictions_path.exists() else 0
+        ds_last_updated = active_dataset_info.get("last_updated") if active_dataset_info else None
+        ds_source = active_dataset_info.get("source") if active_dataset_info else None
+        fingerprint = (cleaned_mtime, cleaned_size, preds_mtime, preds_size, ds_last_updated, ds_source, seed)
+
+        with self._lock:
+            if (
+                self._cached_p0_hat is not None
+                and self._cached_merged_df is not None
+                and self._cached_fingerprint == fingerprint
+                and self._cached_customer_ids is not None
+            ):
+                current_ids = self._cached_merged_df["customer_id"].values
+                if len(self._cached_customer_ids) == len(current_ids) and np.array_equal(self._cached_customer_ids, current_ids):
+                    return self._cached_merged_df.copy(), self._cached_p0_hat.copy(), True
+
+            # Cache miss or invalidated: load and fit
+            import optimize_budget as ob
+            df = ob.load_and_validate_inputs(str(cleaned_path), str(predictions_path))
+            p0_hat = ob.fit_observable_baseline_conversion_model(df, seed=seed)
+
+            self._cached_customer_ids = df["customer_id"].values.copy()
+            self._cached_p0_hat = p0_hat.copy()
+            self._cached_fingerprint = fingerprint
+            self._cached_merged_df = df.copy()
+
+            return df.copy(), p0_hat.copy(), False
+
+    def invalidate(self) -> None:
+        with self._lock:
+            self._cached_p0_hat = None
+            self._cached_customer_ids = None
+            self._cached_fingerprint = None
+            self._cached_merged_df = None
+
+
+MAX_SIMULATION_CACHE_SIZE = 30
+
+
+class SimulationCache:
+    """
+    Thread-safe, bounded LRU cache for simulation results and customer allocations.
+    Associates summary metrics and customer allocations with unique simulation_ids.
+    """
+    def __init__(self, max_size: int = MAX_SIMULATION_CACHE_SIZE):
+        self._max_size = max_size
+        self._lock = threading.Lock()
+        self._cache: collections.OrderedDict[str, Dict[str, Any]] = collections.OrderedDict()
+
+    def store(
+        self,
+        simulation_id: str,
+        inputs: Dict[str, Any],
+        performance: Dict[str, Any],
+        allocations_df: pd.DataFrame
+    ) -> None:
+        with self._lock:
+            if simulation_id in self._cache:
+                self._cache.pop(simulation_id)
+            while len(self._cache) >= self._max_size:
+                self._cache.popitem(last=False)
+            self._cache[simulation_id] = {
+                "simulation_id": simulation_id,
+                "created_at": time.time(),
+                "created_at_iso": time.strftime("%Y-%m-%d %H:%M:%S UTC", time.gmtime()),
+                "inputs": inputs,
+                "performance": performance,
+                "allocations_df": allocations_df,
+            }
+
+    def get(self, simulation_id: str) -> Optional[Dict[str, Any]]:
+        with self._lock:
+            if simulation_id not in self._cache:
+                return None
+            entry = self._cache.pop(simulation_id)
+            self._cache[simulation_id] = entry
+            return entry
+
+    def clear(self) -> None:
+        with self._lock:
+            self._cache.clear()
+
+    def __len__(self) -> int:
+        with self._lock:
+            return len(self._cache)
+
+
+_baseline_cache = BaselineConversionCache()
+_simulation_cache = SimulationCache()
+
+
 def reset_to_default_dataset() -> Dict[str, Any]:
     """Resets in-memory caches to original baseline artifacts."""
     global _allocations_df_cache, _summary_json_cache, _active_dataset_info, _cate_summary_cache
     _allocations_df_cache = None
     _summary_json_cache = None
     _cate_summary_cache = None
+    _baseline_cache.invalidate()
+    _simulation_cache.clear()
     load_allocations_dataframe()
     load_summary_json()
     _active_dataset_info = {
@@ -201,10 +326,31 @@ def load_validation_json() -> Dict[str, Any]:
 # Pydantic Models
 # -----------------------------------------------------------------------------
 class SimulationRequest(BaseModel):
-    budget: float = Field(50000.0, ge=1000.0, le=500000.0, description="Total budget in INR (₹1k to ₹500k)")
+    budget: float = Field(50000.0, ge=0.0, le=1000000.0, description="Total budget in INR (₹0 to ₹1,000,000)")
     margin_ratio: float = Field(0.30, ge=0.05, le=0.90, description="Gross contribution margin ratio (5% to 90%)")
     budget_type: str = Field("allocated", pattern="^(allocated|redeemed)$", description="Budget liability mode")
     solver: str = Field("milp", pattern="^(milp|greedy)$", description="Solver engine (milp or greedy)")
+    objective: str = Field("max_profit", pattern="^(max_profit|max_conversions)$", description="Optimization objective: 'max_profit' or 'max_conversions'")
+
+    @field_validator("budget")
+    @classmethod
+    def validate_budget(cls, v: float) -> float:
+        if v is None or math.isnan(v) or math.isinf(v):
+            raise ValueError("Budget must be a finite numeric value.")
+        if v < 0.0:
+            raise ValueError("Budget cannot be negative.")
+        if v > 1000000.0:
+            raise ValueError("Budget cannot exceed ₹1,000,000.")
+        return float(v)
+
+    @field_validator("margin_ratio")
+    @classmethod
+    def validate_margin(cls, v: float) -> float:
+        if v is None or math.isnan(v) or math.isinf(v):
+            raise ValueError("Margin ratio must be a finite numeric value.")
+        if v < 0.05 or v > 0.90:
+            raise ValueError("Margin ratio must be between 0.05 and 0.90.")
+        return float(v)
 
 
 class CustomerRecommendationItem(BaseModel):
@@ -226,6 +372,8 @@ class PaginatedRecommendationsResponse(BaseModel):
     page: int
     page_size: int
     total_pages: int
+    simulation_id: Optional[str] = None
+    is_simulation: bool = False
     items: List[CustomerRecommendationItem]
 
 
@@ -287,6 +435,7 @@ def get_optimization_summary() -> Dict[str, Any]:
 
 @app.get("/api/recommendations", response_model=PaginatedRecommendationsResponse)
 def get_recommendations(
+    simulation_id: Optional[str] = Query(None, description="Optional simulation ID to retrieve allocations for a specific simulated policy"),
     page: int = Query(1, ge=1, description="Page number"),
     page_size: int = Query(25, ge=5, le=100, description="Items per page"),
     search: Optional[str] = Query(None, description="Search by customer_id"),
@@ -298,8 +447,29 @@ def get_recommendations(
 ):
     """
     Paginated, searchable, and filterable customer allocation table.
+    Supports viewing baseline recommendations or custom simulation allocations via simulation_id.
     """
-    df = load_allocations_dataframe().copy()
+    if simulation_id and simulation_id.strip() and simulation_id.strip() != "baseline":
+        clean_sim_id = simulation_id.strip()
+        sim_entry = _simulation_cache.get(clean_sim_id)
+        if sim_entry is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=(
+                    f"Simulation with ID '{clean_sim_id}' not found or has expired. "
+                    "Simulation results are maintained in-memory and cleared on server restart "
+                    "or after exceeding recent simulation capacity. "
+                    "Please run a new simulation or switch back to baseline recommendations."
+                ),
+            )
+        df = sim_entry["allocations_df"].copy()
+        is_sim = True
+        active_sim_id = clean_sim_id
+    else:
+        df = load_allocations_dataframe().copy()
+        is_sim = False
+        active_sim_id = None
+
     total_count = len(df)
 
     # 1. Search Filter
@@ -378,7 +548,90 @@ def get_recommendations(
         page=page,
         page_size=page_size,
         total_pages=total_pages,
+        simulation_id=active_sim_id,
+        is_simulation=is_sim,
         items=items,
+    )
+
+
+@app.get("/api/recommendations/export")
+def export_recommendations(
+    simulation_id: Optional[str] = Query(None, description="Optional simulation ID to export allocations for"),
+    search: Optional[str] = Query(None, description="Search by customer_id"),
+    discount: Optional[int] = Query(None, description="Filter by discount offer (0, 10, 20)"),
+    income_tier: Optional[str] = Query(None, description="Filter by income tier ('Low', 'Medium', 'High')"),
+    loyalty: Optional[int] = Query(None, description="Filter by loyalty status (0 or 1)"),
+    format: str = Query("csv", pattern="^(csv|json)$", description="Export format: 'csv' or 'json'"),
+):
+    """
+    Export recommendations table as CSV or JSON, respecting simulation ID and active filters.
+    """
+    if simulation_id and simulation_id.strip() and simulation_id.strip() != "baseline":
+        clean_sim_id = simulation_id.strip()
+        sim_entry = _simulation_cache.get(clean_sim_id)
+        if sim_entry is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Simulation with ID '{clean_sim_id}' not found or has expired.",
+            )
+        df = sim_entry["allocations_df"].copy()
+        export_label = f"simulation_{clean_sim_id}"
+    else:
+        df = load_allocations_dataframe().copy()
+        export_label = "baseline"
+
+    # Apply search and filters
+    if search:
+        search_clean = search.strip().lower()
+        df = df[df["customer_id"].str.lower().str.contains(search_clean, na=False)]
+
+    if discount is not None:
+        if discount not in [0, 10, 20]:
+            raise HTTPException(status_code=400, detail="Discount filter must be 0, 10, or 20.")
+        df = df[df["recommended_discount_inr"] == discount]
+
+    if income_tier:
+        tier_clean = income_tier.strip().lower()
+        if "low" in tier_clean:
+            df = df[df["income_tier"].str.startswith("Low")]
+        elif "med" in tier_clean:
+            df = df[df["income_tier"].str.startswith("Medium")]
+        elif "high" in tier_clean:
+            df = df[df["income_tier"].str.startswith("High")]
+
+    if loyalty is not None:
+        if loyalty not in [0, 1]:
+            raise HTTPException(status_code=400, detail="Loyalty filter must be 0 or 1.")
+        df = df[df["loyalty_member"] == loyalty]
+
+    export_cols = [
+        "customer_id",
+        "cart_baseline_value_inr",
+        "monthly_income_inr",
+        "income_tier",
+        "loyalty_member",
+        "loyalty_label",
+        "recommended_discount_inr",
+        "expected_incremental_purchase_uplift",
+        "expected_incremental_profit_inr",
+        "baseline_conversion_prob_hat",
+    ]
+    avail_cols = [c for c in export_cols if c in df.columns]
+    export_df = df[avail_cols]
+
+    if format == "json":
+        return {
+            "simulation_id": simulation_id or "baseline",
+            "total_records": len(export_df),
+            "records": export_df.to_dict(orient="records"),
+        }
+
+    csv_str = export_df.to_csv(index=False)
+    filename = f"recommendations_{export_label}.csv"
+    return Response(
+        content=csv_str,
+        media_type="text/csv",
+        headers={"Content-Disposition": f"attachment; filename={filename}"}
     )
 
 
@@ -643,8 +896,9 @@ def get_chart_data() -> Dict[str, Any]:
 def simulate_custom_optimization(req: SimulationRequest) -> Dict[str, Any]:
     """
     Live optimization simulation endpoint.
-    Runs the optimizer safely with user-specified budget, margin, solver, and budget type.
+    Runs the optimizer safely with user-specified budget, margin, solver, objective, and budget type.
     Does not overwrite production artifacts on disk.
+    Caches baseline model safely and returns an opaque simulation_id for customer allocation retrieval.
     """
     try:
         import optimize_budget as ob
@@ -654,17 +908,21 @@ def simulate_custom_optimization(req: SimulationRequest) -> Dict[str, Any]:
             detail=f"Failed to import optimization engine: {e}",
         )
 
-    # 1. Load validated inputs
-    df = ob.load_and_validate_inputs(str(CLEANED_DATA_PATH), str(DML_PREDICTIONS_PATH))
-    p0_hat = ob.fit_observable_baseline_conversion_model(df, seed=42)
+    # 1. Load validated inputs and baseline conversion model safely (cached)
+    df, p0_hat, was_cached = _baseline_cache.get_or_fit(
+        CLEANED_DATA_PATH,
+        DML_PREDICTIONS_PATH,
+        seed=42,
+        active_dataset_info=_active_dataset_info,
+    )
 
     # 2. Check eligibility
     eligible_10, eligible_20 = ob.check_eligibility(df)
 
-    # 3. Compute values and costs
+    # 3. Compute values and costs for the requested objective
     v10, v20, c10, c20 = ob.compute_offer_values_and_costs(
         df, p0_hat,
-        objective="max_profit",
+        objective=req.objective,
         margin_ratio=req.margin_ratio,
         budget_type=req.budget_type,
         eligible_10=eligible_10,
@@ -672,6 +930,7 @@ def simulate_custom_optimization(req: SimulationRequest) -> Dict[str, Any]:
     )
 
     # 4. Solve allocation
+    actual_solver_used = req.solver
     if req.solver == "milp":
         w10, w20, obj_val = ob.solve_budget_optimization_milp(
             v10, v20, c10, c20, budget=req.budget, allow_multiple=False
@@ -681,23 +940,101 @@ def simulate_custom_optimization(req: SimulationRequest) -> Dict[str, Any]:
             v10, v20, c10, c20, budget=req.budget, allow_multiple=False
         )
 
+    # Verify single-offer mutual exclusivity
+    if np.any((w10 + w20) > 1):
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Optimizer error: Solution violated single-offer mutual exclusivity constraint.",
+        )
+
+    # Verify budget constraint
+    if req.budget_type == "allocated":
+        actual_spent = float(np.sum(10.0 * w10 + 20.0 * w20))
+    else:
+        p10 = np.clip(p0_hat + df["tau_hat_10"].values, 0.0, 1.0)
+        p20 = np.clip(p0_hat + df["tau_hat_20"].values, 0.0, 1.0)
+        actual_spent = float(np.sum(10.0 * p10 * w10 + 20.0 * p20 * w20))
+
+    if req.budget > 0.0 and actual_spent > req.budget + 1e-4:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Optimizer error: Solution violated budget constraint (spent ₹{actual_spent:.2f} > budget ₹{req.budget:.2f}).",
+        )
+
     # 5. Evaluate simulated policy performance
+    policy_label = f"Simulated {req.solver.upper()} Policy ({'Max Profit' if req.objective == 'max_profit' else 'Max Conversions'})"
     sim_perf = ob.evaluate_policy_performance(
         df, w10, w20, p0_hat,
         margin_ratio=req.margin_ratio,
         total_budget=req.budget,
-        policy_name=f"Simulated {req.solver.upper()} Policy",
+        policy_name=policy_label,
         budget_type=req.budget_type,
+        objective=req.objective,
     )
+    sim_perf["solver_used"] = actual_solver_used
+    sim_perf["baseline_model_cached"] = was_cached
+
+    # 6. Build customer allocations DataFrame for this simulation
+    recommended_discount = np.zeros(len(df), dtype=int)
+    recommended_discount[w10 == 1] = 10
+    recommended_discount[w20 == 1] = 20
+
+    assigned_uplift = np.zeros(len(df), dtype=float)
+    assigned_uplift[w10 == 1] = df.loc[w10 == 1, "tau_hat_10"]
+    assigned_uplift[w20 == 1] = df.loc[w20 == 1, "tau_hat_20"]
+
+    profit10 = df["tau_hat_10"].values * (req.margin_ratio * df["cart_baseline_value_inr"].values - 10.0) - p0_hat * 10.0
+    profit20 = df["tau_hat_20"].values * (req.margin_ratio * df["cart_baseline_value_inr"].values - 20.0) - p0_hat * 20.0
+    assigned_profit = np.zeros(len(df), dtype=float)
+    assigned_profit[w10 == 1] = profit10[w10 == 1]
+    assigned_profit[w20 == 1] = profit20[w20 == 1]
+
+    sim_alloc_df = pd.DataFrame({
+        "customer_id": df["customer_id"].values,
+        "cart_baseline_value_inr": df["cart_baseline_value_inr"].values,
+        "monthly_income_inr": df["monthly_income_inr"].values,
+        "loyalty_member": df["loyalty_member"].values,
+        "recommended_discount_inr": recommended_discount,
+        "expected_incremental_purchase_uplift": np.round(assigned_uplift, 4),
+        "expected_incremental_profit_inr": np.round(assigned_profit, 2),
+        "baseline_conversion_prob_hat": np.round(p0_hat, 4),
+    })
+    sim_alloc_df["income_tier"] = sim_alloc_df["monthly_income_inr"].apply(categorize_income_tier)
+    sim_alloc_df["loyalty_label"] = sim_alloc_df["loyalty_member"].apply(
+        lambda x: "Loyalty Club" if int(x) == 1 else "Standard"
+    )
+
+    # 7. Store in bounded simulation cache
+    simulation_id = f"sim_{uuid.uuid4().hex[:12]}"
+    _simulation_cache.store(simulation_id, req.model_dump(), sim_perf, sim_alloc_df)
 
     return {
         "status": "success",
+        "simulation_id": simulation_id,
         "inputs": req.model_dump(),
         "performance": sim_perf,
         "note": (
             "Interactive simulation result computed dynamically on valid observable pretreatment features. "
             "Simulated estimates represent expected values, not guaranteed profit."
         ),
+    }
+
+
+@app.get("/api/simulation/{simulation_id}")
+def get_simulation_detail(simulation_id: str) -> Dict[str, Any]:
+    """Retrieve summary and inputs for an active simulation."""
+    sim_entry = _simulation_cache.get(simulation_id.strip())
+    if sim_entry is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Simulation with ID '{simulation_id}' not found or expired.",
+        )
+    return {
+        "simulation_id": sim_entry["simulation_id"],
+        "created_at": sim_entry["created_at_iso"],
+        "inputs": sim_entry["inputs"],
+        "performance": sim_entry["performance"],
+        "total_allocations": len(sim_entry["allocations_df"]),
     }
 
 
@@ -1294,6 +1631,8 @@ async def upload_custom_dataset(file: UploadFile = File(...)) -> Dict[str, Any]:
 
         _allocations_df_cache = df
         _summary_json_cache = summary_data
+        _baseline_cache.invalidate()
+        _simulation_cache.clear()
         _active_dataset_info = {
             "source": "uploaded_allocations",
             "filename": file.filename,
@@ -1468,6 +1807,8 @@ async def upload_custom_dataset(file: UploadFile = File(...)) -> Dict[str, Any]:
         ]
         _allocations_df_cache = df[alloc_cols]
         _summary_json_cache = summary_data
+        _baseline_cache.invalidate()
+        _simulation_cache.clear()
         _active_dataset_info = {
             "source": "uploaded_pricing_dataset",
             "filename": file.filename,

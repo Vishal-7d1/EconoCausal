@@ -217,7 +217,7 @@ class TestBudgetOptimization(unittest.TestCase):
                 sys.executable, str(self.opt_script),
                 "--data", str(self.cleaned_data),
                 "--predictions", str(self.predictions),
-                "--output-dir", str(self.output_dir),
+                "--output-dir", str(self.test_scratch),
                 "--budget", "50000",
                 "--objective", "max_profit",
                 "--margin-ratio", "0.30",
@@ -228,26 +228,26 @@ class TestBudgetOptimization(unittest.TestCase):
         )
         self.assertEqual(result.returncode, 0, f"Optimizer CLI failed with stderr:\n{result.stderr}")
 
-        # Check all 6 output artifacts
+        # Check all 6 output artifacts in test scratch directory
         expected_artifacts = [
-            self.output_dir / "optimal_discount_allocations.csv",
-            self.output_dir / "optimization_summary.json",
-            self.output_dir / "optimization_report.md",
-            self.output_dir / "01_budget_allocation_distribution.png",
-            self.output_dir / "02_policy_comparison.png",
-            self.output_dir / "03_incremental_conversions_by_segment.png",
+            self.test_scratch / "optimal_discount_allocations.csv",
+            self.test_scratch / "optimization_summary.json",
+            self.test_scratch / "optimization_report.md",
+            self.test_scratch / "01_budget_allocation_distribution.png",
+            self.test_scratch / "02_policy_comparison.png",
+            self.test_scratch / "03_incremental_conversions_by_segment.png",
         ]
         for f in expected_artifacts:
             self.assertTrue(f.is_file(), f"Expected artifact missing: {f}")
 
         # Validate CSV contents
-        alloc_df = pd.read_csv(self.output_dir / "optimal_discount_allocations.csv")
+        alloc_df = pd.read_csv(self.test_scratch / "optimal_discount_allocations.csv")
         self.assertEqual(len(alloc_df), 10000)
         self.assertTrue(set(alloc_df["recommended_discount_inr"].unique()).issubset({0, 10, 20}))
         self.assertFalse(alloc_df["recommended_discount_inr"].isna().any())
 
         # Validate JSON contents
-        with open(self.output_dir / "optimization_summary.json", "r", encoding="utf-8") as f:
+        with open(self.test_scratch / "optimization_summary.json", "r", encoding="utf-8") as f:
             summary = json.load(f)
         opt = summary["optimal_policy"]
         self.assertLessEqual(opt["allocated_budget"], 50000.0)
