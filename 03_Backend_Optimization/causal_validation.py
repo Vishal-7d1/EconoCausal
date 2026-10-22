@@ -501,11 +501,15 @@ def run_monte_carlo_permutation_test(
     seed: int = 42,
 ) -> Dict[str, Any]:
     """
-    Randomization Inference: Monte Carlo Treatment Permutation Test.
+    Model-Based Residual Permutation Diagnostic (Score-Type Permutation Test).
     Hypothesis: H0: The promotional discount has zero causal effect for all units (tau_i = 0).
     Permutes treatment assignment across B iterations preserving treatment-arm sample sizes.
     Computes exact empirical p-value using Davison & Hinkley (1997) continuity correction:
         p = (1 + sum(|tau_null| >= |tau_obs|)) / (1 + B)
+    NOTE: Global treatment permutation in observational data is a model-based residual diagnostic
+    evaluating whether the residualized regression slope is distinct from permutation noise under fixed
+    nuisance residuals. It is NOT design-based randomization inference and cannot prove the absence
+    of unobserved confounding.
     """
     scaler = StandardScaler()
     X = scaler.fit_transform(df_arm[covariates])
@@ -541,8 +545,8 @@ def run_monte_carlo_permutation_test(
     passed = bool(empirical_p < 0.05)
 
     return {
-        "refutation_type": "Monte Carlo Treatment Permutation Test",
-        "description": f"Randomization inference over {n_permutations} permutations preserving treatment-arm sizes. Under H0 (zero effect), observed uplift must lie outside the 95% permutation null interval.",
+        "refutation_type": "Model-Based Residual Permutation Diagnostic",
+        "description": f"Model-based residual permutation diagnostic over {n_permutations} iterations preserving treatment-arm sample sizes. Under H0 (zero effect), observed uplift must lie outside the 95% permutation null interval. Note: Global permutation is an observational score-type diagnostic, not design-based randomization inference, and does not rule out unobserved confounding.",
         "n_permutations": int(n_permutations),
         "observed_effect_pct": float(round(slope_obs * 100, 2)),
         "null_mean_pct": float(round(null_mean * 100, 3)),
@@ -559,8 +563,9 @@ def run_monte_carlo_permutation_test(
             f"Failed: Observed effect falls within the null interval (p = {empirical_p:.5f})."
         ),
         "assumptions_and_limitations": (
-            "Randomization inference confirms that the observed uplift is not a random permutation artifact. "
-            "However, treatment permutation cannot establish unconfoundedness or rule out unobserved confounding."
+            "Model-based permutation evaluates whether the residualized regression slope is distinct from permutation noise under fixed nuisance residuals. "
+            "However, because treatment assignment is observational and covariate-dependent, global permutation is NOT design-based randomization inference "
+            "and cannot establish unconfoundedness or rule out unobserved confounding."
         ),
     }
 
@@ -616,6 +621,8 @@ def compute_cinelli_hazlett_sensitivity(
         if bench_cov in df_arm.columns:
             other_covs = [c for c in covariates if c != bench_cov]
             X_other = scaler.fit_transform(df_arm[other_covs])
+
+            # Treatment benchmark: R^2(T ~ X_j | X_{-j})
             reg_t_other = Ridge(alpha=10.0, random_state=seed).fit(X_other, T)
             t_res_other = T - reg_t_other.predict(X_other)
 
@@ -626,9 +633,15 @@ def compute_cinelli_hazlett_sensitivity(
             _, _, r_tx, _, _ = stats.linregress(x_res_other, t_res_other)
             r2_tx = max(0.0, float(r_tx ** 2))
 
-            reg_y_other = Ridge(alpha=10.0, random_state=seed).fit(X_other, Y)
-            y_res_other = Y - reg_y_other.predict(X_other)
-            _, _, r_yx, _, _ = stats.linregress(x_res_other, y_res_other)
+            # Outcome benchmark: R^2(Y ~ X_j | T, X_{-j}) (formal Cinelli-Hazlett definition conditioning on T)
+            Z_other = np.column_stack([X_other, T])
+            reg_y_other = Ridge(alpha=10.0, random_state=seed).fit(Z_other, Y)
+            y_res_other = Y - reg_y_other.predict(Z_other)
+
+            reg_x_z = Ridge(alpha=10.0, random_state=seed).fit(Z_other, x_target)
+            x_res_z = x_target - reg_x_z.predict(Z_other)
+
+            _, _, r_yx, _, _ = stats.linregress(x_res_z, y_res_other)
             r2_yx = max(0.0, float(r_yx ** 2))
 
             benchmarks[bench_cov] = {
@@ -666,7 +679,10 @@ def compute_rosenbaum_bounds(
 ) -> Dict[str, Any]:
     """
     Unobserved Confounding Sensitivity Analysis via Rosenbaum Bounds (2002).
-    Estimand: Non-parametric matched-pair Wilcoxon signed-rank test under hidden bias Gamma >= 1.0.
+    Estimand: Matched-pair sensitivity model under hidden bias Gamma >= 1.0.
+    For binary outcomes (Y in {0, 1}), implements the exact McNemar-scale normal approximation
+    with discrete continuity correction on discordant pairs (Rosenbaum 2002, Chapter 4, eq 4.14).
+    For continuous outcomes, implements the Wilcoxon signed-rank formula.
     Identifies the critical odds ratio Gamma* at which the upper-bound p-value exceeds 0.05.
     """
     y_t = matched_t_df[outcome_col].to_numpy(dtype=float)
@@ -681,15 +697,21 @@ def compute_rosenbaum_bounds(
     if n_discordant == 0:
         return {
             "method": "Rosenbaum Sensitivity Bounds for Matched Pairs",
+            "estimand": "Matched-pair sensitivity model under hidden selection bias",
             "matched_pairs_total": int(n_pairs),
             "discordant_pairs": 0,
+            "t_positive_rank_sum": 0.0,
             "gamma_critical": None,
-            "interpretation": "No discordant pairs available to compute signed-rank bounds.",
+            "sample_bounds": [],
+            "interpretation": "No discordant pairs available to compute sensitivity bounds.",
         }
 
     abs_d = np.abs(d_nonzero)
     ranks = stats.rankdata(abs_d)
     t_pos = float(np.sum(ranks[d_nonzero > 0]))
+    n_pos = int(np.sum(d_nonzero > 0))
+
+    is_binary = bool(np.all(np.isin(d_nonzero, [-1.0, 1.0])))
 
     gamma_grid = np.arange(1.0, gamma_max + 0.05, gamma_step)
     bounds_table = []
@@ -698,14 +720,27 @@ def compute_rosenbaum_bounds(
     for g in gamma_grid:
         g_val = float(round(g, 2))
         p_plus = g_val / (1.0 + g_val)
-        e_t = float(np.sum(ranks) * p_plus)
-        var_t = float(np.sum(ranks ** 2) * p_plus * (1.0 - p_plus))
 
-        if var_t > 1e-9:
-            z = (t_pos - e_t - 0.5) / np.sqrt(var_t)
-            p_upper = float(1.0 - stats.norm.cdf(z))
+        if is_binary:
+            # Exact Rosenbaum (2002, eq 4.14) McNemar-scale normal approximation with discrete continuity correction
+            e_t = float(n_discordant * p_plus)
+            var_t = float(n_discordant * p_plus * (1.0 - p_plus))
+            if var_t > 1e-9:
+                dev = n_pos - e_t
+                correction = 0.5 if dev > 0 else (-0.5 if dev < 0 else 0.0)
+                z = (dev - correction) / np.sqrt(var_t)
+                p_upper = float(1.0 - stats.norm.cdf(z))
+            else:
+                p_upper = 1.0 if n_pos <= e_t else 0.0
         else:
-            p_upper = 1.0
+            # Continuous Wilcoxon signed-rank formula
+            e_t = float(np.sum(ranks) * p_plus)
+            var_t = float(np.sum(ranks ** 2) * p_plus * (1.0 - p_plus))
+            if var_t > 1e-9:
+                z = (t_pos - e_t - 0.5) / np.sqrt(var_t)
+                p_upper = float(1.0 - stats.norm.cdf(z))
+            else:
+                p_upper = 1.0
 
         p_upper_clean = float(round(p_upper, 5))
         bounds_table.append({"gamma": g_val, "p_upper_bound": p_upper_clean})
@@ -715,7 +750,7 @@ def compute_rosenbaum_bounds(
 
     return {
         "method": "Rosenbaum Sensitivity Bounds for Matched Pairs",
-        "estimand": "Matched-pair Wilcoxon signed-rank test under hidden selection bias",
+        "estimand": "Matched-pair Wilcoxon signed-rank test under hidden selection bias" if not is_binary else "Matched-pair binary sensitivity test (McNemar normal approximation) under hidden selection bias",
         "matched_pairs_total": int(n_pairs),
         "discordant_pairs": int(n_discordant),
         "t_positive_rank_sum": float(round(t_pos, 1)),

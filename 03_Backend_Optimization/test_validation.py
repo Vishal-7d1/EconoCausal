@@ -175,9 +175,9 @@ class TestCausalValidation(unittest.TestCase):
         self.assertEqual(trimming["status"], "PASS")
         self.assertLess(trimming["drift_pct"], 8.0)
 
-        # 5. Monte Carlo Permutation test
+        # 5. Monte Carlo / Model-Based Residual Permutation test
         perm_10 = refutations_10[4]
-        self.assertEqual(perm_10["refutation_type"], "Monte Carlo Treatment Permutation Test")
+        self.assertIn(perm_10["refutation_type"], ["Model-Based Residual Permutation Diagnostic", "Monte Carlo Treatment Permutation Test"])
         self.assertEqual(perm_10["status"], "PASS")
         self.assertLessEqual(perm_10["p_value"], 0.05)
         self.assertEqual(perm_10["n_permutations"], 500)
@@ -469,6 +469,90 @@ class TestCausalValidation(unittest.TestCase):
         for obj in [none_obj, nan_obj, EmptyObj()]:
             extracted_p, _ = extract_refutation_p_value(obj)
             self.assertNotIn(extracted_p, [0.741, 0.485])
+
+    def test_12_cinelli_hazlett_benchmark_conditions_on_treatment(self):
+        """Verify that the Cinelli-Hazlett outcome benchmark R^2(Y ~ X_j | T, X_{-j}) conditions on treatment."""
+        # Construct synthetic dataset where X_target is confounded with T, but has 0 direct effect on Y given T
+        np.random.seed(42)
+        n = 500
+        t = np.random.binomial(1, 0.5, n)
+        # X_target strongly correlates with T
+        x_bench = t * 2.0 + np.random.normal(0, 0.2, n)
+        # Other covariates independent of Y
+        x_other = np.random.normal(0, 1, (n, 8))
+        # Y is purely driven by T
+        y = t * 1.5 + np.random.normal(0, 0.1, n)
+
+        cov_names = ["monthly_income_inr"] + [f"cov_{i}" for i in range(8)]
+        data_dict = {
+            "treated_binary": t,
+            "observed_purchase": y,
+            "monthly_income_inr": x_bench,
+        }
+        for i in range(8):
+            data_dict[f"cov_{i}"] = x_other[:, i]
+
+        df_synthetic = pd.DataFrame(data_dict)
+        ch_res = compute_cinelli_hazlett_sensitivity(
+            df_arm=df_synthetic,
+            treatment_col="treated_binary",
+            outcome_col="observed_purchase",
+            covariates=cov_names,
+            observed_effect=1.5,
+            seed=42,
+        )
+
+        bench = ch_res["observed_covariate_benchmarks"]["monthly_income_inr"]
+        # Treatment benchmark R^2(T ~ X_j | X_{-j}) should be very high
+        self.assertGreater(bench["partial_r2_treatment"], 50.0)
+        # Outcome benchmark R^2(Y ~ X_j | T, X_{-j}) must be near zero because it conditions on T!
+        self.assertLess(bench["partial_r2_outcome"], 5.0, "Outcome benchmark failed to condition on T!")
+
+    def test_13_rosenbaum_binary_matched_pair_edge_cases_and_monotonicity(self):
+        """Verify Rosenbaum sensitivity bounds across all edge cases, monotonicity, and grid stability."""
+        # Case 1: No discordant pairs (all identical pairs)
+        df_t0 = pd.DataFrame({"observed_purchase": [1, 0, 1, 0]})
+        df_c0 = pd.DataFrame({"observed_purchase": [1, 0, 1, 0]})
+        res0 = compute_rosenbaum_bounds(df_t0, df_c0)
+        self.assertEqual(res0["discordant_pairs"], 0)
+        self.assertIsNone(res0["gamma_critical"])
+        self.assertEqual(len(res0["sample_bounds"]), 0)
+
+        # Case 2: All positive discordant pairs (1 vs 0)
+        df_t_pos = pd.DataFrame({"observed_purchase": [1] * 50})
+        df_c_pos = pd.DataFrame({"observed_purchase": [0] * 50})
+        res_pos = compute_rosenbaum_bounds(df_t_pos, df_c_pos, gamma_max=3.0, gamma_step=0.1)
+        self.assertEqual(res_pos["discordant_pairs"], 50)
+        # Under Gamma=1.0, p must be extremely small
+        self.assertLess(res_pos["sample_bounds"][0]["p_upper_bound"], 1e-4)
+        # Monotonicity: p_upper must be strictly non-decreasing
+        p_vals = [pt["p_upper_bound"] for pt in res_pos["sample_bounds"]]
+        for i in range(len(p_vals) - 1):
+            self.assertLessEqual(p_vals[i], p_vals[i + 1] + 1e-7)
+
+        # Case 3: All negative discordant pairs (0 vs 1)
+        df_t_neg = pd.DataFrame({"observed_purchase": [0] * 50})
+        df_c_neg = pd.DataFrame({"observed_purchase": [1] * 50})
+        res_neg = compute_rosenbaum_bounds(df_t_neg, df_c_neg, gamma_max=3.0, gamma_step=0.1)
+        self.assertEqual(res_neg["discordant_pairs"], 50)
+        # Negative effect fails immediately at Gamma=1.0 (p > 0.05)
+        self.assertGreater(res_neg["sample_bounds"][0]["p_upper_bound"], 0.50)
+        self.assertEqual(res_neg["gamma_critical"], 1.0)
+
+        # Case 4: Mixed discordant pairs with known critical Gamma
+        # 35 positive, 15 negative
+        df_t_mix = pd.DataFrame({"observed_purchase": [1] * 35 + [0] * 15 + [1] * 10})
+        df_c_mix = pd.DataFrame({"observed_purchase": [0] * 35 + [1] * 15 + [1] * 10})
+        res_mix = compute_rosenbaum_bounds(df_t_mix, df_c_mix, gamma_max=3.0, gamma_step=0.1)
+        self.assertEqual(res_mix["discordant_pairs"], 50)
+        self.assertIsNotNone(res_mix["gamma_critical"])
+        self.assertGreater(res_mix["gamma_critical"], 1.0)
+        self.assertLessEqual(res_mix["gamma_critical"], 3.0)
+
+        # Monotonicity check on mixed pairs
+        p_mix = [pt["p_upper_bound"] for pt in res_mix["sample_bounds"]]
+        for i in range(len(p_mix) - 1):
+            self.assertLessEqual(p_mix[i], p_mix[i + 1] + 1e-7)
 
 
 if __name__ == "__main__":
