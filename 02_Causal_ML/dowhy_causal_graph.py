@@ -83,39 +83,83 @@ def run_dowhy_pipeline() -> Dict[str, Any]:
     estimated_value = float(estimate.value)
     logger.info(f"Estimated Average Treatment Effect (ATE): {estimated_value:.4f}")
 
+    def _extract_p_value(refute_obj: Any) -> Tuple[Optional[float], str]:
+        """Safely extract p-value from DoWhy refutation object without fabricating fallbacks."""
+        raw_p = getattr(refute_obj, "p_value", None)
+        if raw_p is None:
+            return None, "unavailable (DoWhy returned None)"
+        try:
+            val = float(raw_p)
+            if np.isnan(val):
+                return None, "unavailable (NaN)"
+            return float(round(val, 4)), "computed"
+        except (ValueError, TypeError) as exc:
+            return None, f"unavailable ({exc})"
+
     # 4. Run DoWhy Refutation Tests (Mid-Project Review Requirement)
     logger.info("Executing DoWhy Refutation 1: Random Common Cause...")
-    refute_random_common = model.refute_estimate(
-        identified_estimand,
-        estimate,
-        method_name="random_common_cause",
-        random_state=42,
-    )
-    new_effect_common = float(refute_random_common.new_effect)
-    common_cause_p = float(getattr(refute_random_common, "p_value", 0.741) or 0.741)
-    drift_common_pct = abs(new_effect_common - estimated_value) / max(abs(estimated_value), 1e-4) * 100.0
+    try:
+        refute_random_common = model.refute_estimate(
+            identified_estimand,
+            estimate,
+            method_name="random_common_cause",
+            random_state=42,
+        )
+        new_effect_common = float(refute_random_common.new_effect)
+        common_cause_p, common_cause_p_status = _extract_p_value(refute_random_common)
+        drift_common_pct = abs(new_effect_common - estimated_value) / max(abs(estimated_value), 1e-4) * 100.0
+        refute_common_passed = bool(drift_common_pct < 5.0)
+        refute_common_verdict = f"PASS (Effect Invariant, drift: {drift_common_pct:.2f}%)" if refute_common_passed else f"FAIL (Drift {drift_common_pct:.2f}% >= 5.0%)"
+    except Exception as exc:
+        logger.error(f"Random common cause refutation failed: {exc}")
+        new_effect_common = None
+        common_cause_p, common_cause_p_status = None, f"error: {exc}"
+        drift_common_pct = None
+        refute_common_passed = False
+        refute_common_verdict = f"ERROR ({exc})"
 
     logger.info("Executing DoWhy Refutation 2: Placebo Treatment Refuter...")
-    refute_placebo = model.refute_estimate(
-        identified_estimand,
-        estimate,
-        method_name="placebo_treatment_refuter",
-        placebo_type="permute",
-        random_state=42,
-    )
-    new_effect_placebo = float(refute_placebo.new_effect)
-    placebo_p = float(getattr(refute_placebo, "p_value", 0.485) or 0.485)
+    try:
+        refute_placebo = model.refute_estimate(
+            identified_estimand,
+            estimate,
+            method_name="placebo_treatment_refuter",
+            placebo_type="permute",
+            random_state=42,
+        )
+        new_effect_placebo = float(refute_placebo.new_effect)
+        placebo_p, placebo_p_status = _extract_p_value(refute_placebo)
+        if placebo_p is not None:
+            refute_placebo_passed = bool((placebo_p > 0.05) or (abs(new_effect_placebo) < 0.02))
+        else:
+            refute_placebo_passed = bool(abs(new_effect_placebo) < 0.02)
+        refute_placebo_verdict = f"PASS (Effect Collapses to Zero: {new_effect_placebo:+.4f})" if refute_placebo_passed else f"FAIL (Residual effect {new_effect_placebo:+.4f})"
+    except Exception as exc:
+        logger.error(f"Placebo refutation failed: {exc}")
+        new_effect_placebo = None
+        placebo_p, placebo_p_status = None, f"error: {exc}"
+        refute_placebo_passed = False
+        refute_placebo_verdict = f"ERROR ({exc})"
 
     logger.info("Executing DoWhy Refutation 3: Data Subset Refuter...")
-    refute_subset = model.refute_estimate(
-        identified_estimand,
-        estimate,
-        method_name="data_subset_refuter",
-        subset_fraction=0.8,
-        random_state=42,
-    )
-    new_effect_subset = float(refute_subset.new_effect)
-    drift_subset_pct = abs(new_effect_subset - estimated_value) / max(abs(estimated_value), 1e-4) * 100.0
+    try:
+        refute_subset = model.refute_estimate(
+            identified_estimand,
+            estimate,
+            method_name="data_subset_refuter",
+            subset_fraction=0.8,
+            random_state=42,
+        )
+        new_effect_subset = float(refute_subset.new_effect)
+        drift_subset_pct = abs(new_effect_subset - estimated_value) / max(abs(estimated_value), 1e-4) * 100.0
+        refute_subset_passed = bool(drift_subset_pct < 6.0)
+        refute_subset_verdict = f"PASS (Subsample Robust, drift: {drift_subset_pct:.2f}%)" if refute_subset_passed else f"FAIL (Drift {drift_subset_pct:.2f}% >= 6.0%)"
+    except Exception as exc:
+        logger.error(f"Data subset refutation failed: {exc}")
+        new_effect_subset = None
+        drift_subset_pct = None
+        refute_subset_passed = False
+        refute_subset_verdict = f"ERROR ({exc})"
 
     # Structured metadata for frontend & documentation
     graph_metadata = {
@@ -142,34 +186,36 @@ def run_dowhy_pipeline() -> Dict[str, Any]:
                 "method": "random_common_cause",
                 "hypothesis": "Adding unobserved confounder noise must not alter estimated treatment effect.",
                 "original_effect": float(round(estimated_value, 4)),
-                "new_effect": float(round(new_effect_common, 4)),
-                "p_value": float(round(common_cause_p, 4)),
-                "drift_pct": float(round(drift_common_pct, 2)),
+                "new_effect": float(round(new_effect_common, 4)) if new_effect_common is not None else None,
+                "p_value": common_cause_p,
+                "p_value_status": common_cause_p_status,
+                "drift_pct": float(round(drift_common_pct, 2)) if drift_common_pct is not None else None,
                 "tolerance": "< 5.0% relative drift",
-                "verdict": "PASS (Effect Invariant)",
-                "passed": bool(drift_common_pct < 5.0),
+                "verdict": refute_common_verdict,
+                "passed": refute_common_passed,
             },
             {
                 "test_name": "Placebo Treatment Refuter",
                 "method": "placebo_treatment_refuter",
                 "hypothesis": "Replacing treatment with random noise must collapse effect towards zero.",
                 "original_effect": float(round(estimated_value, 4)),
-                "new_effect": float(round(new_effect_placebo, 4)),
-                "p_value": float(round(placebo_p, 4)),
-                "tolerance": "p > 0.05 or effect ~ 0",
-                "verdict": "PASS (Effect Collapses to Zero)",
-                "passed": bool(placebo_p > 0.05 or abs(new_effect_placebo) < 0.02),
+                "new_effect": float(round(new_effect_placebo, 4)) if new_effect_placebo is not None else None,
+                "p_value": placebo_p,
+                "p_value_status": placebo_p_status,
+                "tolerance": "effect ~ 0 (|effect| < 0.02) or p > 0.05",
+                "verdict": refute_placebo_verdict,
+                "passed": refute_placebo_passed,
             },
             {
                 "test_name": "Data Subset Refuter",
                 "method": "data_subset_refuter",
                 "hypothesis": "Estimating on random 80% partitions must yield statistically consistent effect.",
                 "original_effect": float(round(estimated_value, 4)),
-                "new_effect": float(round(new_effect_subset, 4)),
-                "drift_pct": float(round(drift_subset_pct, 2)),
+                "new_effect": float(round(new_effect_subset, 4)) if new_effect_subset is not None else None,
+                "drift_pct": float(round(drift_subset_pct, 2)) if drift_subset_pct is not None else None,
                 "tolerance": "< 6.0% relative drift",
-                "verdict": "PASS (Subsample Robust)",
-                "passed": bool(drift_subset_pct < 6.0),
+                "verdict": refute_subset_verdict,
+                "passed": refute_subset_passed,
             },
         ],
         "summary": {
