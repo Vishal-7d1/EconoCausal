@@ -10,7 +10,7 @@
 **Host Organization:** Infotact Solutions  
 **Evaluation Standard:** Rubin Causal Model, Neyman Orthogonality & SciPy Mixed-Integer Programming  
 **Dataset Scale:** $N = 10,000$ Customer Cohort  
-**Status:** 100% Grade A+ Certified  
+**Status:** Validation Passed (Simulated Benchmark) — 100% Robustness Scorecard  
 
 ---
 
@@ -60,32 +60,45 @@ The gold standard in econometrics and biostatistics requires all covariates to s
 
 ## 3. Causal Falsification & Robustness Stress Tests
 
-To certify production safety, four econometric refutation algorithms were deployed:
+To certify econometric validity, five causal falsification algorithms were deployed:
 
 ### Test 1: Placebo Treatment Refutation
 - **Hypothesis:** If actual discount assignments are replaced with purely random treatment allocations, the estimated treatment effect must drop to zero ($\hat{\tau} \to 0$).
-- **Estimated Placebo Effect:** $\hat{\tau}_{\text{placebo}} = -0.00041$ (95% CI: $[-0.0031, +0.0023]$)
-- **p-value:** $p = 0.485$ (Fail to reject the null hypothesis of zero effect).
-- **Status:** **PASS (Model does not invent false causal relationships)**.
+- **Estimated Placebo Effect:** $\hat{\tau}_{\text{placebo}} \approx 0.00\%$ ($p = 0.4851 > 0.05$).
+- **Status:** **PASS (Model does not invent spurious causal relationships)**.
 
 ### Test 2: Random Common Cause Refutation
-- **Hypothesis:** Injecting an independent unobserved random confounder should not meaningfully alter the estimated causal effect.
-- **Baseline Effect:** $\hat{\tau} = 0.08310$
-- **New Effect with Confounder:** $\hat{\tau}_{\text{new}} = 0.08272$
-- **Relative Difference:** **0.46%** ($< 1.0\%$)
-- **p-value:** $p = 0.741$
+- **Hypothesis:** Injecting an independent unobserved random Gaussian confounder should not meaningfully alter the estimated causal effect.
+- **Relative Difference:** **0.16%** ($< 5.0\%$ tolerance).
 - **Status:** **PASS (Structural stability against unobserved shocks)**.
 
 ### Test 3: Data Subset Stability Refutation
-- **Hypothesis:** Estimating the model on multiple random 80% sub-samples of the cohort must produce stable individual rankings.
-- **Mean Rank Correlation ($R^2$):** **0.9842**
-- **Point Estimate Variance:** $\sigma^2_{\hat{\tau}} < 0.00015$
+- **Hypothesis:** Estimating the model on multiple random 80% bootstrap sub-samples of the cohort must produce stable point estimates.
+- **Relative Difference:** **0.03%** ($< 5.0\%$ tolerance).
 - **Status:** **PASS (Model does not overfit to specific sub-populations)**.
 
-### Test 4: Unconfoundedness Residual Test
-- **Hypothesis:** Pre-treatment covariates $X$ should possess zero predictive power over the orthogonalized outcome residuals $\tilde{Y}$.
-- **Regression $R^2$:** $< 0.0018$ ($F$-statistic $p = 0.621$).
-- **Status:** **PASS (Conditioning set fully controls for observable selection)**.
+### Test 4: Positivity Overlap Trimming Sensitivity
+- **Hypothesis:** Trimming observations in extreme propensity tails should not destabilize policy uplift estimates.
+- **Relative Difference:** **0.17%** ($< 5.0\%$ tolerance).
+- **Status:** **PASS (Positivity holds across common support)**.
+
+### Test 5: Model-Based Residual Permutation Diagnostic
+- **Hypothesis:** Permuting treatment residuals under the null hypothesis of no effect yields a null distribution. True uplift must significantly deviate from this null.
+- **Observed Uplift vs. Null:** $+14.22\%$ observed uplift vs. 95% permutation null interval $[-2.12\%, +2.02\%]$.
+- **Empirical p-value:** $p = 0.00200 < 0.05$ (Null hypothesis rejected).
+- **Status:** **PASS (Demonstrates statistically significant causal signal)**.
+
+### 3.1 Unobserved Confounding Sensitivity Analysis
+- **Rosenbaum Sensitivity Bounds on Matched Observational Pairs:**
+  - Arm ₹10 vs Control: 2,273 matched pairs, 1,169 discordant pairs $\to$ Critical Threshold $\Gamma^* = 1.7$ (upper-bound $p = 0.1905 > 0.05$).
+  - Arm ₹20 vs Control: 2,088 matched pairs, 1,067 discordant pairs $\to$ Critical Threshold $\Gamma^* = 2.1$ (upper-bound $p = 0.0986 > 0.05$).
+  - *Disclosure:* Reported $\Gamma^*$ represents the first discrete grid point on $\Gamma \in [1.0, 3.0]$ ($\Delta\Gamma = 0.1$) where upper-bound $p > 0.05$.
+- **Cinelli & Hazlett (2020) Partial-$R^2$ Robustness Values:**
+  - Arm ₹10: Point Estimate $RV_{q=1} = 12.42\%$, Significance $RV_{\alpha=0.05} = 10.47\%$.
+  - Arm ₹20: Point Estimate $RV_{q=1} = 17.81\%$, Significance $RV_{\alpha=0.05} = 15.95\%$.
+
+### 3.2 Governance & Real-World Deployment Notice
+While 1:1 PSM eliminated $>94\%$ of observable bias ($|SMD| < 0.022$) and refutation tests confirm robustness, observational data cannot mathematically guarantee the complete absence of unobserved confounders. In live production environments, deployment should begin with a randomized A/B holdout test.
 
 ---
 

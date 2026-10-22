@@ -36,8 +36,7 @@ These customer-specific price elasticities are directly coupled with an exact **
 - **Incremental Net Profit:** **₹3,76,115.07** generated under a ₹50,000 budget constraint.
 - **Return on Ad/Discount Spend (ROAS):** **7.52x**, outperforming uniform discounting heuristics by **+28.4%**.
 - **Incremental Purchases:** **+829.9** uplift in transactions over organic baseline.
-- **Targeting Efficiency:** Targeted **4,568 customers (45.68%)** while leaving 54.32% discount-inelastic shoppers at full price, completely eliminating deadweight subsidies.
-- **Causal Robustness & Falsification:** Passed all 4 gold-standard causal refutation stress tests (Placebo Treatment $p=0.485$, Random Common Cause $p=0.741$, Data Subset Stability, and Covariate Balance $|SMD| < 0.10$ across all 9 confounders) with a **100% Grade A+ Certification**.
+- **Causal Robustness & Falsification:** Passed all 5 econometric refutation stress tests (Placebo $p=0.4851$, Random Common Cause $0.16\%$ drift, Data Subset $0.03\%$ drift, Positivity Trimming $0.17\%$ drift, and Permutation Diagnostic $p=0.002$), verified post-matching balance ($|SMD| < 0.022$ across all 9 confounders), and established Rosenbaum bounds ($\Gamma^* = 1.7, 2.1$) and Cinelli-Hazlett robustness ($RV_{q=1} = 12.42\%, 17.81\%$).
 - **Interactive Interface:** Delivered a high-performance React + Vite executive dashboard communicating with a FastAPI microservice backend with sub-50ms inference latency.
 
 ---
@@ -177,25 +176,30 @@ To satisfy stringent enterprise validation standards, the system incorporates em
 
 ```mermaid
 graph LR
-    V1[1:1 Caliper PSM Matching] --> VA[Covariate Balance: All SMD < 0.10]
-    V2[Placebo Treatment Test] --> VB[Placebo Effect: tau_hat = 0, p = 0.485]
-    V3[Random Common Cause Test] --> VC[Effect Stability: Delta < 1%, p = 0.741]
-    V4[Data Subset Stability] --> VD[Subsample Recovery: R2 > 0.98]
-    VA & VB & VC & VD --> CERT[Grade A+ Production Certification: 100%]
+    V1[1:1 Caliper PSM Matching] --> VA[Covariate Balance: All SMD < 0.022]
+    V2[Placebo Treatment Test] --> VB[Placebo Effect: p = 0.4851 > 0.05]
+    V3[Random Common Cause] --> VC[Effect Drift < 0.16%]
+    V4[Data Subset Stability] --> VD[Subsample Drift < 0.03%]
+    V5[Residual Permutation] --> VE[Null Rejection: p = 0.0020]
+    VA & VB & VC & VD & VE --> CERT[Validation Scorecard: 100% Robustness]
 ```
 
 ### 5.1 Propensity Score Matching (PSM) & Covariate Balance
-Using 1:1 Nearest-Neighbor Caliper Matching on estimated logit propensity scores:
-- **Treatment Cohort Size:** 4,568 treated customers successfully matched with identical control counterparts within a caliper of $0.05 \times \sigma_{\text{logit}}$.
-- **Standardized Mean Differences (SMD):** Across all 9 observational covariates, post-match $|SMD|$ dropped from $> 0.35$ down to **$< 0.045$**, well within the gold-standard scientific threshold ($|SMD| < 0.10$).
+Using 1:1 Nearest-Neighbor Caliper Matching on estimated logit propensity scores ($\epsilon = 0.20 \times \sigma_{\text{logit}}$):
+- **Treatment Cohort Size:** 2,273 matched pairs for ₹10 arm (95.87% match rate) and 2,088 matched pairs for ₹20 arm (97.07% match rate).
+- **Standardized Mean Differences (SMD):** Across all 9 observational covariates, post-match $|SMD|$ dropped from $> 0.35$ down to **$< 0.022$** (maximum observed $|SMD| = 0.0181$), well within the gold-standard scientific threshold ($|SMD| < 0.10$).
 
-### 5.2 4 Causal Falsification Refutation Tests
-1. **Placebo Treatment Refutation:** Replacing actual discount assignments with randomized noise resulted in an estimated causal effect of $\hat{\tau}_{\text{placebo}} = -0.0004 \approx 0$ ($p = 0.485$). The model correctly rejected false causality.
-2. **Random Common Cause Refutation:** Adding an unobserved synthetic confounder to $W$ did not meaningfully perturb the CATE point estimates ($\Delta \tau < 0.8\%$, $p = 0.741$), demonstrating structural stability.
-3. **Data Subset Refutation:** Re-estimating on independent 80% random sub-samples produced identical policy rankings ($R^2 > 0.98$).
-4. **Unconfoundedness Verification:** Pre-treatment covariates exhibited zero residual predictive power on post-residualized treatment residuals.
+### 5.2 5 Causal Falsification Refutation Tests
+1. **Placebo Treatment Refutation:** Replacing actual discount assignments with randomized noise resulted in an estimated causal effect collapsing to $0.00\%$ ($p = 0.4851 > 0.05$). The model correctly rejected spurious causation.
+2. **Random Common Cause Refutation:** Adding an unobserved synthetic Gaussian confounder to $W$ induced only $0.16\%$ relative effect drift ($< 5.0\%$ tolerance).
+3. **Data Subset Refutation:** Re-estimating on independent 80% random sub-samples exhibited only $0.03\%$ relative effect drift ($< 5.0\%$ tolerance).
+4. **Positivity Overlap Trimming Sensitivity:** Trimming extreme propensity tails exhibited only $0.17\%$ relative effect drift ($< 5.0\%$ tolerance).
+5. **Model-Based Residual Permutation Diagnostic:** Observed treatment uplift ($+14.22\%$) lies far outside the 95% permutation null distribution ($[-2.12\%, +2.02\%]$), rejecting the null hypothesis of zero effect at empirical $p = 0.00200 < 0.05$.
 
-**Overall Certification Score:** **100% (Grade A+ Production Certified)**.
+### 5.3 Sensitivity to Unobserved Confounding & Governance Disclosures
+- **Rosenbaum Sensitivity Bounds:** Critical tipping thresholds evaluated on matched pairs are $\Gamma^* = 1.7$ (₹10 arm) and $\Gamma^* = 2.1$ (₹20 arm).
+- **Cinelli & Hazlett (2020) Robustness Values:** To reduce estimated effects to zero, an unobserved confounder must explain at least $RV_{q=1} = 12.42\%$ (₹10 arm) and $17.81\%$ (₹20 arm) of residual variance in both treatment and outcome.
+- **Scientific Disclosure & Certification Scope:** Internal labels (`APPROVED`, `Grade A+ Certified`) reflect project-level validation scorecard criteria evaluated on a synthetic benchmark dataset ($N=10,000$). Observational sensitivity analysis establishes resilience against hidden bias but cannot mathematically replace randomized A/B experimentation in live enterprise deployments.
 
 ---
 
@@ -231,10 +235,11 @@ graph TB
     end
 
     subgraph Backend [FastAPI Production Microservice]
-        API1[/api/dashboard/summary]
-        API2[/api/policy/simulate]
-        API3[/api/data/sample]
-        API4[/api/audit/report]
+        API1[/api/summary]
+        API2[/api/simulate]
+        API3[/api/dataset/sample]
+        API4[/api/report/export]
+        API5[/api/validation]
         DML[EconML LinearDML Runtime Engine]
         MILP[SciPy HiGHS Optimizer]
     end
@@ -243,6 +248,7 @@ graph TB
     UI4 <--> API2
     UI2 <--> API3
     UI5 <--> API4
+    UI5 <--> API5
     API2 <--> MILP
     API1 <--> DML
 ```

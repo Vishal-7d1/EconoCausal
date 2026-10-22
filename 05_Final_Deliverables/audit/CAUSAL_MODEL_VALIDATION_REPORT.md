@@ -58,20 +58,30 @@ All 9 covariates satisfy $|SMD| < 0.022$, well within the industry standard $|SM
 
 ---
 
-## 4. Causal Refutation Suite
+## 4. Causal Refutation Suite & Sensitivity Analysis
 
 | Refutation Test | Baseline Effect | Refuted Result | Threshold | P-Value / Drift | Audit Verdict |
 | :--- | :---: | :---: | :---: | :---: | :---: |
-| **Placebo Treatment Permutation** | +14.22% | **+0.04%** | Effect collapses to ~0 | p = 0.485 (p > 0.05) | `PASS` |
+| **Placebo Treatment Permutation** | +14.22% | **+0.83%** | Effect collapses to ~0 | p = 0.4851 (p > 0.05) | `PASS` |
 | **Random Confounder Injection** | +14.22% | **+14.20%** | Relative drift < 5.0% | Drift: 0.16% | `PASS` |
-| **Data Subset Stability (80% Bootstrap)** | +14.22% | **+14.23%** | Relative drift < 6.0% | Drift: 0.03% | `PASS` |
-| **Positivity Trimming Sensitivity** | +14.22% | **+14.20%** | Relative drift < 8.0% | Drift: 0.17% | `PASS` |
+| **Data Subset Stability (80% Bootstrap)** | +14.22% | **+14.23%** | Relative drift < 5.0% | Drift: 0.03% | `PASS` |
+| **Positivity Trimming Sensitivity** | +14.22% | **+14.20%** | Relative drift < 5.0% | Drift: 0.17% | `PASS` |
+| **Model-Based Residual Permutation** | +14.22% | Null: `[-2.12%, +2.02%]` | Reject H0 (p < 0.05) | p = 0.00200 | `PASS` |
+
+### 4.1 Unobserved Confounding Sensitivity Analysis
+- **Rosenbaum Sensitivity Bounds on Matched Observational Pairs:**
+  - Arm ₹10 vs Control: 2,273 matched pairs, 1,169 discordant pairs $\to$ Critical Threshold $\Gamma^* = 1.7$ (upper-bound $p = 0.1905 > 0.05$).
+  - Arm ₹20 vs Control: 2,088 matched pairs, 1,067 discordant pairs $\to$ Critical Threshold $\Gamma^* = 2.1$ (upper-bound $p = 0.0986 > 0.05$).
+  - *Disclosure:* Evaluated on discrete grid $\Gamma \in [1.0, 3.0]$ ($\Delta\Gamma = 0.1$); $\Gamma^*$ is first discrete point where $p > 0.05$.
+- **Cinelli & Hazlett (2020) Partial-$R^2$ Robustness Values:**
+  - Arm ₹10: Point Estimate $RV_{q=1} = 12.42\%$, Significance $RV_{\alpha=0.05} = 10.47\%$.
+  - Arm ₹20: Point Estimate $RV_{q=1} = 17.81\%$, Significance $RV_{\alpha=0.05} = 15.95\%$.
 
 ---
 
 ## 5. Scientific Assumptions & Disclosures
 
-1. **Unconfoundedness Assumption:** All observable confounders are balanced ($|SMD| < 0.10$) and refutation tests pass. However, observational data alone cannot mathematically guarantee the absence of unobserved confounders. Real-world deployment should be preceded by a small randomized A/B validation test.
+1. **Unconfoundedness Assumption:** All observable confounders are balanced ($|SMD| < 0.022$) and 5/5 refutation tests pass. However, observational data alone cannot mathematically guarantee the complete absence of unobserved confounders. Real-world deployment should be preceded by a small randomized A/B validation test.
 2. **Positivity (Common Support):** Verified across 95.9% of the cohort within caliper bounds.
 3. **No SUTVA Violation:** Assumes promotional offers to one customer do not influence peers or exhaust shared inventory.
 4. **Label Correction Notice:** Unsupported claims ("Grade A+", "Production Certified") have been removed and replaced with "Validation Passed (Simulated Benchmark)".

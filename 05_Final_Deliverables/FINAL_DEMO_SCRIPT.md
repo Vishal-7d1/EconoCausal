@@ -98,20 +98,21 @@ Open Google Chrome or Brave and navigate to: **`http://localhost:5173`** (or `ht
 
 ---
 
-### Phase 6: Causal Validation, DoWhy DAG & Drift Detection (9:00 – 11:00)
+### Phase 6: Causal Validation, DoWhy DAG & Sensitivity Analysis (9:00 – 11:00)
 * **What to Show on Screen:** Click **Causal Validation & PSM** in the sidebar.
 * **Key Visuals to Show:**
   1. **Scorecard:** Validation Passed (100% Robustness Score).
   2. **Love Plot:** Pre-match SMD (orange squares) vs Post-match SMD (green circles < 0.022).
-  3. **4 Refutations:** Placebo (p=0.485), Confounder Injection (0.16% drift), Data Subset (0.03% drift), Trimming (0.17% drift).
-  4. **DoWhy Causal DAG Card:** Backdoor criterion identification.
-  5. **Data Drift Monitoring Card:** PSI scores across features (all < 0.020 < 0.10 threshold).
+  3. **5 Refutations:** Placebo (p=0.4851), Confounder Injection (0.16% drift), Data Subset (0.03% drift), Trimming (0.17% drift), and Residual Permutation (p=0.0020).
+  4. **Sensitivity Bounds Card:** Rosenbaum bounds ($\Gamma^* = 1.7, 2.1$) and Cinelli-Hazlett ($RV_{q=1} = 12.42\%, 17.81\%$).
+  5. **DoWhy Causal DAG Card:** Backdoor criterion identification.
+  6. **Data Drift Monitoring Card:** PSI scores across features (all < 0.020 < 0.10 threshold).
 * **Exact Speaking Script:**
   > *"To ensure scientific integrity, we do not rely on correlation. In the Validation workspace:
   > 1. Our Love Plot confirms that 1:1 Propensity Score Matching eliminated over 94% of observational bias across all 9 confounders, bringing all |SMD| values below 0.022.
-  > 2. All 4 causal refutation tests pass: in the Placebo test, when treatment is permuted, the causal effect collapses to 0 with p = 0.485.
-  > 3. Our Microsoft DoWhy Directed Acyclic Graph mathematically proves identification via the Backdoor Criterion.
-  > 4. Finally, our continuous Data Drift Detector monitors incoming customer distributions via Population Stability Index (PSI); all features currently report PSI < 0.020, confirming system stability."*
+  > 2. All 5 causal refutation stress tests pass: in the Placebo test, when treatment is permuted, the effect collapses to zero (p = 0.4851). Our residual permutation diagnostic rejects the null hypothesis at p = 0.002.
+  > 3. Econometric sensitivity analysis proves robustness against unobserved confounding up to Rosenbaum Gamma = 1.7 and 2.1, with clear disclosures noting that observational bounds complement, but do not replace, randomized A/B experimentation.
+  > 4. Our Microsoft DoWhy Directed Acyclic Graph mathematically proves identification via the Backdoor Criterion, and our Data Drift Detector confirms stability with all feature PSI values < 0.020."*
 
 ---
 

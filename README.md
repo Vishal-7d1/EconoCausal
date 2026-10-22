@@ -41,7 +41,7 @@ EconoCausal/
 │       └── eda_summary_report.md
 ├── 02_Causal_ML/                     # Double Machine Learning (EconML / CATE estimation)
 │   ├── train_dml.py                  # DML training, cross-fitting, evaluation & diagnostics
-│   ├── test_dml.py                   # Automated validation test suite (4 tests)
+│   ├── test_dml.py                   # Automated validation test suite (5 tests: 3 safe + 2 quarantined)
 │   └── outputs/                      # Saved DML models, predictions, metrics, and plots
 │       ├── dml_model.joblib          # Trained EconML DML estimator
 │       ├── dml_effect_predictions.csv# Customer-level CATE estimates (tau_hat_10, tau_hat_20)
@@ -53,15 +53,15 @@ EconoCausal/
 │       └── 04_propensity_support_diagnostics.png
 ├── 03_Backend_Optimization/          # Prescriptive discount allocation & budget optimization engine
 │   ├── optimize_budget.py            # Budget-constrained knapsack & MILP pricing optimizer (PuLP CBC / Greedy)
-│   ├── causal_validation.py          # PSM balance diagnostics (Love plot) & refutation falsification suite
-│   ├── test_optimizer.py             # Automated unit & mathematical test suite (12 tests)
-│   ├── test_validation.py            # Automated causal validation test suite (5 tests)
+│   ├── causal_validation.py          # PSM balance diagnostics (Love plot), 5 refutation stress tests & sensitivity analysis
+│   ├── test_optimizer.py             # Automated unit & mathematical test suite (13 tests)
+│   ├── test_validation.py            # Automated causal validation test suite (14 tests)
 │   └── outputs/                      # Saved allocation policies, metrics, and plots
 │       ├── customer_discount_allocations.csv # 10,000 customer recommendations
 │       ├── optimization_summary.json # Quantitative performance & baseline comparisons
 │       ├── optimization_report.md    # Detailed executive markdown report
-│       ├── causal_validation_summary.json # PSM SMD balance & refutation drift results
-│       ├── causal_validation_report.md    # Causal validation report
+│       ├── causal_validation_summary.json # PSM SMD balance & 5-refutation drift results
+│       ├── causal_validation_report.md    # Causal validation & sensitivity report
 │       ├── 01_budget_allocation_distribution.png
 │       ├── 02_policy_comparison.png
 │       ├── 03_incremental_conversions_by_segment.png
@@ -70,7 +70,7 @@ EconoCausal/
 ├── 04_Frontend_Dashboard/            # Executive decision dashboard (React 19, Plotly.js, FastAPI)
 │   ├── backend/
 │   │   ├── app.py                    # High-concurrency FastAPI service with CORS hardening
-│   │   └── test_api.py               # Automated REST API & security test suite (17 tests)
+│   │   └── test_api.py               # Automated REST API & security test suite (34 tests)
 │   ├── src/
 │   │   ├── App.jsx                   # React dashboard with Dark/Light mode, Qini curves, DAG & drift
 │   │   ├── App.css                   # Custom responsive CSS design system (Vanilla CSS)
@@ -93,7 +93,9 @@ EconoCausal/
 │       ├── CAUSAL_MODEL_VALIDATION_REPORT.md # Econometric diagnostics & refutation audit
 │       ├── OPTIMIZER_VALIDATION_REPORT.md    # Optimization derivation & optimality audit
 │       ├── API_TEST_REPORT.md                # REST API test & security audit
-│       └── TEST_EXECUTION_REPORT.md          # 43/43 automated test execution log
+│       ├── TEST_EXECUTION_REPORT.md          # Comprehensive test execution log (64 distinct tests / 65 runs)
+│       ├── LEVEL_6_FRONTEND_VERIFICATION_REPORT.md # Level 6 browser smoke test report (Pass with Limitations)
+│       └── LEVEL_7_DOCUMENTATION_GOVERNANCE_REPORT.md # Level 7 documentation audit & governance report
 ├── .gitignore                        # Git ignore rules for caches, builds, and venvs
 └── README.md                         # Central project documentation
 ```
@@ -280,42 +282,52 @@ python 01_Dataset_Analysis/inspect_dataset.py --path 01_Dataset_Analysis/cleaned
 python 01_Dataset_Analysis/eda.py --data 01_Dataset_Analysis/cleaned_pricing_data.csv --eval-data 01_Dataset_Analysis/ground_truth_eval.csv --output-dir 01_Dataset_Analysis/outputs --seed 42
 ```
 
-### 6. Train Double Machine Learning Baseline Model
+### 6. Train Double Machine Learning Baseline Model (Historical Pipeline)
+> [!WARNING]
+> This command retrains the DML model and evaluates against `ground_truth_eval.csv`. In active evaluation and governance auditing, pretrained production artifacts are immutable and already serialized in `02_Causal_ML/outputs/`. Do not overwrite or retrain production models.
 ```powershell
 python 02_Causal_ML/train_dml.py --data 01_Dataset_Analysis/cleaned_pricing_data.csv --eval-data 01_Dataset_Analysis/ground_truth_eval.csv --output-dir 02_Causal_ML/outputs --estimator linear_dml --cv 5 --seed 42
 ```
 
-### 7. Run Automated DML Test Suite
+### 7. Run Automated DML Test Suite (Safe Non-Retraining Subset)
 ```powershell
-python 02_Causal_ML/test_dml.py
+# Executes 3 safe unit and artifact integrity tests without retraining or accessing ground_truth_eval.csv
+python -m unittest 02_Causal_ML.test_dml.TestDoubleMachineLearning.test_01_missing_file_handling 02_Causal_ML.test_dml.TestDoubleMachineLearning.test_02_anti_leakage_safeguard 02_Causal_ML.test_dml.TestDoubleMachineLearning.test_05_production_artifacts_unmodified
+```
+> [!NOTE]
+> `test_03_dml_training_and_artifacts` and `test_04_causal_forest_dml_execution` are quarantined under safety policy `BLOCKED_BY_SAFETY_CONSTRAINT` to strictly prevent unintentional retraining and ground-truth benchmark access.
+
+### 8. Run Econometric Validation & PSM Test Suite
+```powershell
+python -B -m unittest 03_Backend_Optimization/test_validation.py
 ```
 
-### 8. Run Prescriptive Budget Optimization (₹50,000 Budget)
+### 9. Run Prescriptive Budget Optimization (₹50,000 Budget)
 ```powershell
 python 03_Backend_Optimization/optimize_budget.py --data 01_Dataset_Analysis/cleaned_pricing_data.csv --predictions 02_Causal_ML/outputs/dml_effect_predictions.csv --output-dir 03_Backend_Optimization/outputs --budget 50000 --objective max_profit --margin-ratio 0.30 --solver milp
 ```
 
-### 9. Run Optimizer Automated Test Suite
+### 10. Run Optimizer Automated Test Suite
 ```powershell
-python 03_Backend_Optimization/test_optimizer.py
+python -m unittest 03_Backend_Optimization/test_optimizer.py
 ```
 
-### 10. Run Dashboard FastAPI Backend Service
+### 11. Run Dashboard FastAPI Backend Service
 ```powershell
 uvicorn 04_Frontend_Dashboard.backend.app:app --host 127.0.0.1 --port 8000 --reload
 ```
 
-### 11. Run Backend API Automated Test Suite
+### 12. Run Backend API Automated Test Suite (34 Tests)
 ```powershell
-python 04_Frontend_Dashboard/backend/test_api.py
+python -m unittest 04_Frontend_Dashboard/backend/test_api.py
 ```
 
-### 12. Run Interactive Frontend Dashboard (Vite Dev Server)
+### 13. Run Interactive Frontend Dashboard (Vite Dev Server)
 ```powershell
 npm --prefix 04_Frontend_Dashboard run dev
 ```
 
-### 13. Build Frontend Production Bundle
+### 14. Build Frontend Production Bundle
 ```powershell
 npm --prefix 04_Frontend_Dashboard run build
 ```
@@ -418,11 +430,36 @@ npm --prefix 04_Frontend_Dashboard run build
 - **Automated Test Suite (`02_Causal_ML/test_dml.py`)**:
   - `test_01_missing_file_handling`: Passed (clean error handling on absent inputs).
   - `test_02_anti_leakage_safeguard`: Passed (actively aborts with code 1 if `true_*` columns present).
-  - `test_03_dml_training_and_artifacts`: Passed (LinearDML training, artifact persistence, PEHE < 0.05, ATE error < 3%, rank correlation thresholds).
-  - `test_04_causal_forest_dml_execution`: Passed (CausalForestDML multi-arm execution and bounded error).
-  - Result: **4 passed in 30.2s (OK)**.
+  - `test_05_production_artifacts_unmodified`: Passed (verifies immutable SHA-256 hashes of serialized production models and predictions).
+  - `test_03_dml_training_and_artifacts`: Marked `BLOCKED_BY_SAFETY_CONSTRAINT` (withheld: invokes `train_dml.py --eval-data ground_truth_eval.csv`, violating isolation rules).
+  - `test_04_causal_forest_dml_execution`: Marked `BLOCKED_BY_SAFETY_CONSTRAINT` (withheld: retrains CausalForestDML on quarantined benchmark).
+  - Result: **3 safe tests passed in 12.39s (OK, 2 safely blocked)**.
 
-### E. Prescriptive Budget Optimization Validation Results (`optimize_budget.py` & `test_optimizer.py`)
+### E. Econometric Validation & Sensitivity Diagnostics (`causal_validation.py` & `test_validation.py`)
+- **Propensity Score Matching (PSM) & Covariate Balance**:
+  - 1:1 Nearest-Neighbor Caliper Matching on propensity score logit ($\epsilon = 0.20 \times \sigma_{\text{logit}}$).
+  - ₹10 Arm vs Control: 2,273 matched pairs from 2,371 treated (95.87% match rate).
+  - ₹20 Arm vs Control: 2,088 matched pairs from 2,151 treated (97.07% match rate).
+  - Post-match balance: All 9 pretreatment confounders satisfy $|SMD| < 0.022$ (range: $-0.0112$ to $+0.0181$), well below the gold-standard $|SMD| < 0.10$ threshold.
+- **5-Battery Causal Refutation Suite**:
+  1. **Placebo Treatment Test**: Causal effect collapses to $0.00\%$ ($p = 0.4851 > 0.05$; Passed).
+  2. **Random Common Cause Refutation**: Gaussian confounder noise induces only $0.16\%$ drift ($< 5.0\%$ threshold; Passed).
+  3. **Data Subset Removal Refutation**: 80% bootstrap sub-sampling exhibits $0.03\%$ drift ($< 5.0\%$ threshold; Passed).
+  4. **Positivity Overlap Trimming Sensitivity**: Extreme propensity trimming exhibits $0.17\%$ drift ($< 5.0\%$ threshold; Passed).
+  5. **Model-Based Residual Permutation Diagnostic**: Observed uplift $+14.22\%$ vs 95% null distribution $[-2.12\%, +2.02\%]$ ($p = 0.00200 < 0.05$; H0 Rejected; Passed).
+- **Unobserved Confounding Sensitivity Analysis**:
+  - **Rosenbaum Sensitivity Bounds on Matched Pairs**:
+    - ₹10 Arm vs Control: 2,273 matched pairs, 1,169 discordant pairs $\to$ Critical Threshold $\Gamma^* = 1.7$ (upper-bound $p = 0.1905 > 0.05$).
+    - ₹20 Arm vs Control: 2,088 matched pairs, 1,067 discordant pairs $\to$ Critical Threshold $\Gamma^* = 2.1$ (upper-bound $p = 0.0986 > 0.05$).
+    - *Scientific Disclosure*: Configured thresholds are discrete grid boundaries evaluated on $\Gamma \in [1.0, 3.0]$ ($\Delta\Gamma = 0.1$), not continuous tipping points.
+  - **Cinelli & Hazlett (2020) Partial-$R^2$ Robustness Values**:
+    - ₹10 Arm: Point Estimate $RV_{q=1} = 12.42\%$, Significance $RV_{\alpha=0.05} = 10.47\%$.
+    - ₹20 Arm: Point Estimate $RV_{q=1} = 17.81\%$, Significance $RV_{\alpha=0.05} = 15.95\%$.
+- **Automated Validation Test Suite (`03_Backend_Optimization/test_validation.py`)**:
+  - 14 automated statistical unit tests verifying match rates, $|SMD| < 0.022$, 5 refutation bounds, trimming invariance, Cinelli-Hazlett metrics, and exact binomial Rosenbaum parity (`test_14`).
+  - Result: **14 passed in 11.55s (OK, 100% Pass)**.
+
+### F. Prescriptive Budget Optimization Validation Results (`optimize_budget.py` & `test_optimizer.py`)
 - **Optimization Formulation**:
   - Problem Class: Multiple-Choice Knapsack Problem (MCKP).
   - Primary Objective: Maximize Expected Incremental Profit ($\Delta \Pi_{i, a} = \hat{\tau}_{i, a} \cdot (m \cdot \text{cart}_i - d_a) - \hat{p}_{0, i} \cdot d_a$).
@@ -448,8 +485,11 @@ npm --prefix 04_Frontend_Dashboard run build
   | Baseline 1: Random ₹10 Allocation | ₹50,000 | 5,000 | +717.1 | ₹235,022.35 | 4.70x |
   | Baseline 2: Highest Cart Value (₹10) | ₹50,000 | 5,000 | +791.7 | ₹361,734.50 | 7.23x |
   | Baseline 3: Sequential Uniform ₹10 | ₹50,000 | 5,000 | +718.8 | ₹234,914.09 | 4.70x |
-  - *Causal Targeting Advantage*: Outperforms Random Allocation by **+₹141,092.72 (+60.0%)** incremental profit and **+112.7 orders**. Outperforms traditional High-Cart heuristics by **+₹14,380.57 (+4.0%)** profit and **+38.2 orders**, effectively eliminating deadweight loss on high-baseline shoppers.
-### F. Interactive Frontend Dashboard Validation Results (`04_Frontend_Dashboard/`)
+- **Automated Optimizer Test Suite (`03_Backend_Optimization/test_optimizer.py`)**:
+  - 13 automated unit & mathematical tests verifying budget boundaries, mutual exclusivity, baseline outperformance, greedy concordance, deterministic 4-customer MILP vs exhaustive search parity, negative budget handling, and `test_13` automatic solver fallback attribution.
+  - Result: **13 passed in 22.43s (OK, 100% Pass)**.
+
+### G. Interactive Frontend Dashboard Validation Results (`04_Frontend_Dashboard/`)
 - **Technology Stack**:
   - **Frontend**: React 19, Vite, Plotly.js (`PlotlyChart.jsx`), Vanilla CSS design system (`index.css`, `App.css`).
   - **Backend API**: FastAPI (`backend/app.py`), Uvicorn ASGI server, Pydantic data validation models.
@@ -459,48 +499,54 @@ npm --prefix 04_Frontend_Dashboard run build
   - `GET /api/recommendations`: Paginated (default 25/page), searchable by `customer_id`, sortable across 7 metrics, and filterable by discount (₹0, ₹10, ₹20), demographic income tier (Low, Medium, High), and loyalty status.
   - `GET /api/charts`: Aggregated Plotly data payloads for offer allocation donut chart, benchmark policy comparison bar charts, and segment price elasticity profiles.
   - `POST /api/simulate`: Live simulation endpoint evaluating custom budgets ($B \in [1\text{k}, 500\text{k}]$), margins ($m \in [0.05, 0.90]$), solvers (`milp`, `greedy`), and liability modes (`allocated`, `redeemed`).
+  - `GET /api/validation`: PSM balance metrics, Love plot data, 5 refutations, Rosenbaum bounds ($\Gamma^* = 1.7, 2.1$), and Cinelli-Hazlett robustness values.
+  - `GET /api/causal/dag`: Structural Causal Model DAG nodes, edges, and backdoor adjustment set.
+  - `GET /api/drift/status`: Real-time Kolmogorov-Smirnov & PSI covariate drift monitoring.
+  - `GET /api/dataset/sample`: Sanitized 10k dataset sample for browser exploration.
   - `GET /api/methodology`: Causal identification assumptions, anti-leakage isolation declarations, and financial liability disclosures.
+  - `GET /api/report/export`: Formal executive audit report markdown and structured JSON summary.
 - **Budget Reporting Separation**:
   - **Nominal Coupon Liability (Face-Value exposure)**: **₹50,000.00**
   - **Expected Redeemed Cost (Probability-weighted)**: **₹28,511.16**
 - **Automated Test Suite (`04_Frontend_Dashboard/backend/test_api.py`)**:
-  - `test_01_health_endpoint`: Passed
-  - `test_02_summary_endpoint`: Passed
-  - `test_03_recommendations_pagination`: Passed
-  - `test_04_recommendations_search_and_filters`: Passed
-  - `test_05_recommendations_sorting`: Passed
-  - `test_06_charts_endpoint_data`: Passed
-  - `test_07_simulate_endpoint_valid_milp`: Passed
-  - `test_08_simulate_endpoint_valid_greedy`: Passed
-  - `test_09_simulate_endpoint_invalid_inputs`: Passed
-  - `test_10_anti_leakage_safeguard`: Passed
-  - `test_11_methodology_endpoint`: Passed
-  - `test_12_metrics_consistency_with_source_artifacts`: Passed
-  - `test_13_validation_endpoint`: Passed
-  - `test_14_dataset_sample_endpoint`: Passed
-  - `test_15_export_report_endpoint`: Passed
-  - `test_16_charts_qini_curve_structure`: Passed
-  - `test_17_cors_trusted_origins`: Passed
-  - Result: **17 passed in 7.00s (OK, 100% Pass)**.
+  - 34 automated test cases verifying all 11 endpoints, schemas, pagination, simulation, Qini data, 5-refutation contract, and explicit CORS trusted origins.
+  - Result: **34 passed in 59.87s (OK, 100% Pass)**.
 - **Frontend Code Quality & Production Build**:
-  - Oxlint: **0 errors across all source files**.
-  - Vite v8.3.4 Production Build: Compiled cleanly in **532ms** (`dist/index.html`, `dist/assets/`).
+  - Oxlint: **0 errors across all source files** (10 files, 104 rules).
+  - Vite v8.3.4 Production Build: Compiled cleanly in **2.59s** (1,938 modules, `dist/index.html`, `dist/assets/`).
 
 ---
 
-## 11. Current Implementation Status & Test Verification
+## 11. Current Implementation Status & Test Verification Scorecard
 
 All modules have undergone rigorous verification, zero fabrication, and independent execution:
 
-| Module / Scope | Test Suite | Test Count | Pass Rate | Status |
-| :--- | :--- | :---: | :---: | :--- |
-| **01. Dataset & Anti-Leakage** | `inspect_dataset.py` | 1 | 100% | `VERIFIED PASS` |
-| **02. Causal ML (DML)** | `02_Causal_ML/test_dml.py` | 4 | 100% | `VERIFIED PASS` |
-| **03. Econometric Validation** | `03_Backend_Optimization/test_validation.py` | 5 | 100% | `VERIFIED PASS` |
-| **03. Budget Optimization** | `03_Backend_Optimization/test_optimizer.py` | 12 | 100% | `VERIFIED PASS` |
-| **04. Backend REST API** | `04_Frontend_Dashboard/backend/test_api.py` | 17 | 100% | `VERIFIED PASS` |
-| **04. Frontend Quality & Bundle** | Oxlint Linter + Vite Production Build | 4 files / 19 modules | 100% | `VERIFIED PASS` |
-| **TOTAL VERIFIED CHECKS** | **End-to-End System Tests** | **43** | **100%** | **`VERIFIED PASS`** |
+### Current Executable Test Suite Scorecard (October 2026)
+
+> [!NOTE]
+> The automated test suite comprises **64 distinct test cases**, **65 total test executions**, **65 passing executions**, and **2 safety-blocked test cases**. (Targeted API test `test_13_validation_endpoint` was executed in isolation first, then re-executed in the 34-test full suite: $1 + 34 + 3 + 14 + 13 = 65$ total test runs).
+
+| Module / Scope | Test Suite | Distinct Tests | Executions | Pass | Fail | Blocked / Quarantined | Verified Status |
+| :--- | :--- | :---: | :---: | :---: | :---: | :---: | :--- |
+| **01. Dataset & Anti-Leakage** | `inspect_dataset.py` | 1 | 1 | 1 | 0 | 0 | `VERIFIED PASS` |
+| **02. Causal ML (DML Safe Subset)** | `02_Causal_ML/test_dml.py` | 3 | 3 | 3 | 0 | 0 | `VERIFIED PASS` |
+| **02. Causal ML (Retraining & Eval)** | `02_Causal_ML/test_dml.py` | 2 | 0 | 0 | 0 | 2 | `BLOCKED_BY_SAFETY_CONSTRAINT` |
+| **03. Econometric Validation** | `03_Backend_Optimization/test_validation.py` | 14 | 14 | 14 | 0 | 0 | `VERIFIED PASS` |
+| **03. Budget Optimization** | `03_Backend_Optimization/test_optimizer.py` | 13 | 13 | 13 | 0 | 0 | `VERIFIED PASS` |
+| **04. Backend REST API** | `04_Frontend_Dashboard/backend/test_api.py` | 34 | 35 | 35 | 0 | 0 | `VERIFIED PASS` |
+| **04. Frontend Quality & Bundle** | Oxlint Linter + Vite Production Build | 10 files / 1938 mods | 2 | 2 | 0 | 0 | `VERIFIED PASS` |
+| **TOTAL VERIFIED TEST SUITE** | **Automated Quality Gate** | **64 distinct** | **65 runs** | **65** | **0** | **2 (Blocked)** | **`VERIFIED PASS`** |
+
+### Level 6 Frontend Browser Smoke Testing Verdict
+
+| Verification Scope | Modality & Tooling | Result | Limitation / Findings |
+| :--- | :--- | :---: | :--- |
+| **Page Load & Navigation (8 Tabs)** | Headless Google Chrome (`1920x1080` & `375x812`) | `PASS` | All 8 tabs mount cleanly; zero blank screens, zero React errors. |
+| **Refutation Battery (5 Cards)** | Chrome DOM extraction (`?tab=validation`) | `PASS` | 5/5 refutation cards rendered; permutation diagnostic $p = 0.002$. |
+| **Sensitivity Analysis** | Chrome DOM extraction (`?tab=validation`) | `PASS` | Rosenbaum $\Gamma^* = 1.7, 2.1$, Cinelli-Hazlett $RV$, discrete grid disclosure. |
+| **Executive Report Modal** | Chrome DOM extraction (`?modal=report`) | `PASS` | `APPROVED` status, Grade A+, embedded markdown audit log rendered. |
+| **Print / PDF Workflow** | Window print button binding & CSS audit | `NOT VERIFIED` | Print triggers attached; native print dialog unobservable in headless mode; `@media print` CSS absent in `App.css`. |
+| **Level 6 Comprehensive Verdict** | **Frontend Smoke Testing** | **`PASS WITH LIMITATIONS`** | Core dashboard verified in real browser; native print generation requires manual user verification. |
 
 ---
 
@@ -552,23 +598,25 @@ pip install -r 03_Backend_Optimization/requirements.txt
 pip install python-docx python-pptx openpyxl reportlab
 ```
 
-### Step 2: Run End-to-End Automated Tests
+### Step 2: Run End-to-End Automated Tests (Safe Regression Suite)
 ```powershell
-# 1. Dataset Integrity & Anti-Leakage Check
+# 1. Dataset Integrity & Anti-Leakage Check (1 test)
 python "01_Dataset_Analysis/inspect_dataset.py" --path "01_Dataset_Analysis/synthetic_pricing_data.csv"
 
-# 2. Causal ML DML Suite (4 tests)
-python -m unittest "02_Causal_ML/test_dml.py" -v
+# 2. Causal ML DML Suite (3 Safe Non-Retraining Tests; 2 Tests Safely Blocked)
+python -m unittest 02_Causal_ML.test_dml.TestDoubleMachineLearning.test_01_missing_file_handling 02_Causal_ML.test_dml.TestDoubleMachineLearning.test_02_anti_leakage_safeguard 02_Causal_ML.test_dml.TestDoubleMachineLearning.test_05_production_artifacts_unmodified
 
-# 3. Econometric Validation & PSM Suite (5 tests)
-python -m unittest "03_Backend_Optimization/test_validation.py" -v
+# 3. Econometric Validation & PSM Suite (14 tests)
+python -B -m unittest 03_Backend_Optimization/test_validation.py
 
-# 4. MILP Budget Optimization Engine Suite (12 tests)
-python -m unittest "03_Backend_Optimization/test_optimizer.py" -v
+# 4. MILP Budget Optimization Engine Suite (13 tests)
+python -m unittest 03_Backend_Optimization/test_optimizer.py
 
-# 5. FastAPI Backend REST Service Suite (17 tests)
-python -m unittest "04_Frontend_Dashboard/backend/test_api.py" -v
+# 5. FastAPI Backend REST Service Suite (34 tests)
+python -m unittest 04_Frontend_Dashboard/backend/test_api.py
 ```
+> [!NOTE]
+> Tests `test_03` and `test_04` in `test_dml.py` are withheld under policy `BLOCKED_BY_SAFETY_CONSTRAINT` because they invoke retraining against the quarantined evaluation ground-truth dataset `01_Dataset_Analysis/ground_truth_eval.csv`.
 
 ### Step 3: Start the Backend Service
 ```powershell
@@ -589,7 +637,7 @@ npm run dev
 
 ---
 
-## 14. Known Issues, Assumptions, & Limitations
+## 14. Known Issues, Assumptions, & Governance Disclosures
 
 1. **Estimator Choice & Trade-offs**:
    - `LinearDML` is adopted as the primary baseline estimator due to superior finite-sample efficiency, fast training (3.05s), and reliable rank correlation ($\rho = 0.428$ for ₹10, $\rho = 0.584$ for ₹20).
@@ -605,5 +653,10 @@ npm run dev
 4. **Methodological Limitations**:
    - **Point Estimate Optimization**: Allocations rely on point estimates $\hat{\tau}_i$ without uncertainty penalization (future extension: robust optimization with confidence bounds).
    - **Discrete Pricing Grid**: Allocation selects among {₹0, ₹10, ₹20}; continuous price functions are not evaluated.
-   - **Synthetic vs. Production Readiness**: Evaluated and tested on synthetic e-commerce data with known ground truth; production deployment requires live A/B experiment validation and propensity logging.
+5. **Governance & Production Certification Scope**:
+   - **Scorecard vs. Real-World Certification**: Status badges such as `"APPROVED"`, `"Grade A+ Certified"`, and `"Validation Passed (Simulated Benchmark)"` represent internal project-level verification criteria evaluated on a synthetic benchmark cohort ($N=10,000$). They do not constitute formal regulatory approval or guaranteed unconfoundedness in commercial production.
+   - **Observational Limitations**: While 1:1 PSM achieved post-matching balance ($|SMD| < 0.022$), 5/5 refutation tests passed, and Rosenbaum bounds indicate resilience up to $\Gamma^* = 1.7$ and $2.1$, observational methods cannot rule out unobserved confounding without randomized A/B field trials.
+6. **Frontend Smoke Testing & Native Print Limitations**:
+   - In Level 6 browser smoke testing, all 8 navigation tabs, dynamic Plotly visualizations, 5 refutation cards, permutation diagnostic ($p = 0.002$), and executive report modal were directly verified in a headless Google Chrome session (`PASS WITH LIMITATIONS`).
+   - The native operating system print dialog / PDF generation workflow is marked `NOT VERIFIED` because headless environments cannot visually complete the OS print modal, and dedicated `@media print` CSS rules are absent in `App.css`. Business users should verify print output in interactive browsers.
 

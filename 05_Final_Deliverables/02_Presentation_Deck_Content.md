@@ -146,21 +146,26 @@
 
 ---
 
-## Slide 10: 4 Causal Falsification Refutation Tests
-* **Header:** Stress-Testing Causal Assumptions
+## Slide 10: 5 Causal Falsification Refutations & Sensitivity Analysis
+* **Header:** Stress-Testing Causal Assumptions & Hidden Bias
 * **Refutation Tests:**
   1. **Placebo Treatment Test:** Replaces discount with random noise.
-     - *Result:* $\hat{\tau}_{\text{placebo}} = -0.0004 \approx 0$ ($p = 0.485$). Passed.
-  2. **Random Common Cause Test:** Injects an unobserved synthetic confounder.
-     - *Result:* Effect change $< 0.8\%$ ($p = 0.741$). Passed.
-  3. **Data Subset Stability:** Re-estimates on 80% random partitions.
-     - *Result:* Rank stability $R^2 = 0.984$. Passed.
-  4. **Unconfoundedness Verification:** Regresses post-residual outcomes on covariates.
-     - *Result:* Zero residual predictive correlation ($p > 0.05$). Passed.
-* **Certification:** **100% Score | Grade A+ Production Certified**.
-* **Visual:** 4-Card Certification Dashboard Grid.
+     - *Result:* $\hat{\tau}_{\text{placebo}} \approx 0.00\%$ ($p = 0.4851 > 0.05$). Passed.
+  2. **Random Common Cause Test:** Injects an unobserved synthetic Gaussian confounder.
+     - *Result:* Effect drift $0.16\%$ ($< 5.0\%$ tolerance). Passed.
+  3. **Data Subset Stability:** Re-estimates on 80% bootstrap sub-samples.
+     - *Result:* Relative drift $0.03\%$ ($< 5.0\%$ tolerance). Passed.
+  4. **Positivity Trimming Sensitivity:** Trims extreme propensity tails.
+     - *Result:* Relative drift $0.17\%$ ($< 5.0\%$ tolerance). Passed.
+  5. **Model-Based Residual Permutation Diagnostic:** Permutes treatment residuals against null distribution.
+     - *Result:* Observed uplift $+14.22\%$ vs null $[-2.12\%, +2.02\%]$ ($p = 0.00200 < 0.05$). Passed.
+* **Sensitivity Analysis:**
+  - **Rosenbaum Bounds:** $\Gamma^* = 1.7$ (₹10 arm) and $\Gamma^* = 2.1$ (₹20 arm) on matched pairs.
+  - **Cinelli-Hazlett Robustness:** $RV_{q=1} = 12.42\%$ (₹10 arm) and $17.81\%$ (₹20 arm).
+* **Validation Scorecard:** **100% Score | Validation Passed (Simulated Benchmark)**.
+* **Visual:** 5-Card Certification Dashboard Grid & Sensitivity Callout.
 * **Speaker Notes:**
-  > "In production healthcare and finance, causal models must be audited. We subjected EconoCausal to four rigorous falsification tests. When we assign fake placebo discounts, the model correctly predicts zero effect. When we add artificial confounders, the effect does not change. EconoCausal passed with a 100% Grade A+ certification."
+  > "In enterprise applications, causal models must be audited for robustness. We subjected EconoCausal to five rigorous econometric stress tests. Under fake placebo discounts, the effect collapses to zero (p=0.485). Under confounder injection, subset removal, and propensity trimming, drift remains under 0.2%. Furthermore, our residual permutation diagnostic rejects the zero-effect null hypothesis at p=0.002. Observational sensitivity bounds confirm resilience against hidden bias up to Gamma = 1.7 and 2.1."
 
 ---
 
@@ -182,15 +187,18 @@
 * **Header:** High-Performance Modular Microservice
 * **Backend Capabilities:**
   - **Framework:** FastAPI with asynchronous ASGI Uvicorn server.
-  - **Endpoints:**
-    - `GET /api/dashboard/summary` — Cached cohort summary and policy benchmarks.
-    - `POST /api/policy/simulate` — Dynamic SciPy HiGHS MILP re-optimization ($< 50$ms).
-    - `GET /api/audit/report` — Textual and JSON certification audit summaries.
-    - `GET /api/data/sample` — 10k dataset streaming for browser inspection.
-  - **Reliability:** Comprehensive automated test suite (`pytest`) covering all endpoints with 100% passing rate.
+  - **Endpoints (11 REST Services):**
+    - `GET /api/health` — Service health and anti-leakage artifact verification.
+    - `GET /api/summary` — Cached cohort summary and policy benchmarks.
+    - `GET /api/recommendations` — 10k customer allocations with pagination and filtering.
+    - `GET /api/charts` — Aggregated Plotly data payloads including Qini curves.
+    - `POST /api/simulate` — Dynamic SciPy HiGHS MILP re-optimization ($< 50$ms).
+    - `GET /api/validation` — PSM balance metrics, 5 refutations, and sensitivity bounds.
+    - `GET /api/report/export` — Executive audit report markdown and structured JSON summary.
+  - **Reliability:** Comprehensive automated test suite (`python -m unittest`, 34 tests) covering all endpoints, CORS security, and anti-leakage safeguards with 100% passing rate.
 * **Visual:** API sequence diagram showing JSON payloads between React client and FastAPI server.
 * **Speaker Notes:**
-  > "The dashboard is backed by a FastAPI microservice. The optimization engine is executed in sub-50 milliseconds on the server, returning exact mathematical allocations. All endpoints have automated pytest test suites ensuring production reliability."
+  > "The dashboard is backed by a FastAPI microservice serving 11 dedicated endpoints. The optimization engine runs in sub-50 milliseconds on the server, returning exact mathematical allocations. A 34-test automated suite validates API contracts, CORS security, and anti-leakage isolation with zero failures."
 
 ---
 

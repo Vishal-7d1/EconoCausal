@@ -251,25 +251,26 @@ All automated test suites across the EconoCausal project were reviewed and execu
 
 ## 5. Master Reproduction Script
 
-To execute the entire test suite in one sequence from PowerShell:
+To execute the entire safe executable test suite in one sequence from PowerShell without violating anti-leakage isolation rules:
 
 ```powershell
-# 1. Dataset Inspection & Integrity Check
+# 1. Dataset Inspection & Integrity Check (1 test)
 python "01_Dataset_Analysis/inspect_dataset.py" --path "01_Dataset_Analysis/synthetic_pricing_data.csv"
 
-# 2. Causal ML DML Suite
-python -m unittest "02_Causal_ML/test_dml.py" -v
+# 2. Causal ML DML Suite (Safe Non-Retraining Subset: 3 tests)
+# Note: test_03 and test_04 are BLOCKED_BY_SAFETY_CONSTRAINT to protect ground_truth_eval.csv
+python -m unittest 02_Causal_ML.test_dml.TestDoubleMachineLearning.test_01_missing_file_handling 02_Causal_ML.test_dml.TestDoubleMachineLearning.test_02_anti_leakage_safeguard 02_Causal_ML.test_dml.TestDoubleMachineLearning.test_05_production_artifacts_unmodified
 
-# 3. Econometric Validation & PSM Suite
-python -m unittest "03_Backend_Optimization/test_validation.py" -v
+# 3. Econometric Validation & PSM Suite (14 tests, bytecode untouched)
+python -B -m unittest 03_Backend_Optimization/test_validation.py
 
-# 4. MILP Budget Optimization Engine Suite
-python -m unittest "03_Backend_Optimization/test_optimizer.py" -v
+# 4. MILP Budget Optimization Engine Suite (13 tests)
+python -m unittest 03_Backend_Optimization/test_optimizer.py
 
-# 5. FastAPI Backend REST Service Suite
-python -m unittest "04_Frontend_Dashboard/backend/test_api.py" -v
+# 5. FastAPI Backend REST Service Suite (34 tests)
+python -m unittest 04_Frontend_Dashboard/backend/test_api.py
 
-# 6. Frontend Build Verification
+# 6. Frontend Production Build Verification
 cd 04_Frontend_Dashboard
 npm run build
 cd ..

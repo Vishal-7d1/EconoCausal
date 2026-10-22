@@ -204,7 +204,16 @@ export default function App() {
 
   const [reportData, setReportData] = useState(null);
 
-  const [activeTab, setActiveTab] = useState('overview');
+  const [activeTab, setActiveTab] = useState(() => {
+    try {
+      const p = new URLSearchParams(window.location.search).get('tab');
+      const validTabs = ['overview', 'dataset', 'cate-prediction', 'insights', 'simulator', 'recommendations', 'validation', 'methodology'];
+      if (p && validTabs.includes(p)) return p;
+    } catch {
+      // fallback
+    }
+    return 'overview';
+  });
   const [topNavViewMode, setTopNavViewMode] = useState('pricing');
   const [topNavRange, setTopNavRange] = useState('May 31, 2024 – May 31, 2024');
   const [topNavCategory, setTopNavCategory] = useState('all');
@@ -629,6 +638,17 @@ export default function App() {
     }
     setShowReportModal(true);
   };
+
+  useEffect(() => {
+    try {
+      const m = new URLSearchParams(window.location.search).get('modal');
+      if (m === 'report') {
+        handleOpenReportModal();
+      }
+    } catch {
+      // fallback
+    }
+  }, []);
 
   // --------------------------------------------------------------------------
 
@@ -2096,7 +2116,7 @@ export default function App() {
             <p>
               Empirical verification of Neyman-Rubin causal identification:
               Unconfoundedness via 1:1 Nearest-Neighbor Caliper Matching on propensity scores,
-              Covariate Balance (|SMD| &lt; 0.10), and 4 causal falsification stress-tests.
+              Covariate Balance (|SMD| &lt; 0.10), and 5 causal falsification stress-tests.
             </p>
           </div>
 
@@ -2225,7 +2245,7 @@ export default function App() {
             </div>
           </div>
 
-          {/* 4 Causal Refutation Cards */}
+          {/* 5 Causal Refutation Cards */}
           <div>
             <div style={{ marginBottom: '1rem' }}>
               <h3 style={{ fontSize: '1.15rem', color: 'var(--text-main)', fontWeight: 700 }}>

@@ -104,20 +104,20 @@ Open Google Chrome / Brave and navigate to: **`http://localhost:5174`** (or `htt
 ### Phase 6: Causal Validation, Propensity Score Matching & Refutations (Time: 8:30 – 10:30)
 * **What to Show on Screen:**
   1. Click **`Causal Validation & PSM`** in the left sidebar.
-  2. Point out the **100% Grade A+ (Production Certified)** hero badge.
-  3. Highlight the **4 Gold Standard Certifications**:
-     - Covariate Balance Certified ($|SMD| < 0.10$).
+  2. Point out the **Validation Passed (Simulated Benchmark) — 100% Robustness Scorecard** hero badge.
+  3. Highlight the core econometric pillars:
+     - Covariate Balance Certified ($|SMD| < 0.022$ across all 9 confounders).
      - Common Support & Overlap ($95.9\%$ treated units matched within caliper).
-     - Placebo Invariance ($p = 0.485$).
-     - Unconfoundedness Certified.
-  4. Scroll down to show the **Causal Refutation Stress Tests** cards.
+     - 5 Causal Refutations: Placebo ($p = 0.4851$), Confounder Drift ($0.16\%$), Subset Drift ($0.03\%$), Overlap Trimming ($0.17\%$), and Residual Permutation Diagnostic ($p = 0.00200 < 0.05$).
+     - Unobserved Confounding Sensitivity: Rosenbaum Bounds ($\Gamma^* = 1.7, 2.1$) and Cinelli-Hazlett Robustness Values ($RV_{q=1} = 12.42\%, 17.81\%$).
 * **Exact Speaking Script:**
-  > *"A critical requirement of our Infotact Solutions project was rigorous empirical validation. In healthcare and finance, you cannot deploy a black-box model without auditing its causal identification.
+  > *"A critical requirement of our Infotact Solutions project was rigorous empirical validation. In pricing and economics, you cannot deploy a model without auditing its causal identification.
   > 
   > On this validation workspace:
-  > - We performed **1:1 Nearest-Neighbor Caliper Propensity Score Matching**. All 9 observational features achieved a Standardized Mean Difference of $|SMD| < 0.045$, proving the treated and untreated groups are completely balanced.
-  > - Furthermore, we ran **4 causal falsification stress tests**. For example, in our Placebo Treatment test, when we assign random fake discounts, the model estimates an effect of zero with a p-value of 0.485, confirming it does not learn spurious correlations.
-  > - EconoCausal achieved a **100% Grade A+ Certification**."*
+  > - We performed **1:1 Nearest-Neighbor Caliper Propensity Score Matching**. All 9 observational features achieved a Standardized Mean Difference of $|SMD| < 0.022$, proving the treated and untreated cohorts are completely balanced.
+  > - Furthermore, we ran **5 causal falsification stress tests**. For example, in our Placebo Treatment test, the estimated effect collapses to zero with a p-value of 0.4851. Our residual permutation test rejects the null hypothesis at p = 0.002.
+  > - We also evaluate Rosenbaum sensitivity bounds, showing our conclusions hold against hidden bias up to Gamma = 1.7 and 2.1.
+  > - EconoCausal achieved a **100% Robustness Scorecard** on this benchmark cohort."*
 
 ---
 
@@ -125,11 +125,12 @@ Open Google Chrome / Brave and navigate to: **`http://localhost:5174`** (or `htt
 * **What to Show on Screen:**
   1. Click the top header button: **`📄 Executive Report`**.
   2. Scroll through the formatted report inside the modal displaying the mathematical formulation, baseline comparisons, and policy recommendations.
-  3. Click the close button.
+  3. Point out the header and footer `Print / Save as PDF` buttons and embedded markdown validation audit log.
+  4. Click the close button.
 * **Exact Speaking Script:**
-  > *"Finally, clicking 'Executive Report' in the header opens a complete executive audit report summarizing our econometric methodology, mathematical proofs, and baseline comparisons. Business managers can copy or print this report directly for C-suite presentations.
+  > *"Finally, clicking 'Executive Report' in the header opens a complete executive audit report summarizing our econometric methodology, mathematical proofs, and baseline comparisons. Business managers can review the embedded markdown audit log directly or trigger browser print/PDF export.
   > 
-  > In conclusion, EconoCausal proves that combining Causal AI with prescriptive optimization delivers quantifiable, audited financial value: **+75.4% higher net profit** and an **uncompromising 100% robustness score**.
+  > In conclusion, EconoCausal proves that combining Causal AI with prescriptive optimization delivers quantifiable, audited financial value: **+75.5% higher net profit** and an **uncompromising 100% robustness score**.
   > 
   > Thank you, and I look forward to your questions."*
 
