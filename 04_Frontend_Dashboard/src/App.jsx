@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import {
   LayoutDashboard,
   Package,
@@ -251,7 +251,19 @@ export default function App() {
 
   const [simSolver, setSimSolver] = useState('milp');
 
+  const [simObjective, setSimObjective] = useState('max_profit');
+
   const [simulationResult, setSimulationResult] = useState(null);
+
+  const [simError, setSimError] = useState(null);
+
+  const [activeSimulationId, setActiveSimulationId] = useState(null);
+
+  const [activeSimulationMeta, setActiveSimulationMeta] = useState(null);
+
+  const latestSimReqId = useRef(0);
+
+  const latestRecsReqId = useRef(0);
 
   // Theme State: 'dark' (default) | 'light' with localStorage persistence
   const [theme, setTheme] = useState(() => {
@@ -625,94 +637,85 @@ export default function App() {
   // --------------------------------------------------------------------------
 
   const fetchRecommendations = useCallback(async () => {
-
     setRecommendationsError(null);
+    const currentReqId = ++latestRecsReqId.current;
 
     try {
-
       const params = new URLSearchParams({
-
         page: pagination.page.toString(),
-
         page_size: pagination.pageSize.toString(),
-
         sort_by: sortBy,
-
         sort_order: sortOrder,
-
       });
 
+      if (activeSimulationId) {
+        params.append('simulation_id', activeSimulationId);
+      }
       if (searchQuery.trim()) params.append('search', searchQuery.trim());
-
       if (discountFilter !== '') params.append('discount', discountFilter);
-
       if (incomeTierFilter !== '') params.append('income_tier', incomeTierFilter);
-
       if (loyaltyFilter !== '') params.append('loyalty', loyaltyFilter);
 
       const res = await fetch(`/api/recommendations?${params.toString()}`);
+      if (currentReqId !== latestRecsReqId.current) return;
 
-      if (!res.ok) throw new Error('Failed to load customer recommendations.');
+      if (!res.ok) {
+        const errJson = await res.json().catch(() => ({}));
+        if (res.status === 404 && activeSimulationId) {
+          throw new Error(`Simulation expired or unavailable: ${errJson.detail || 'Simulation results are no longer in server memory.'}`);
+        }
+        throw new Error(errJson.detail || 'Failed to load customer recommendations.');
+      }
 
       const data = await res.json();
+      if (currentReqId !== latestRecsReqId.current) return;
 
       if (!Array.isArray(data.items)) {
-
-        throw new Error(
-
-          'The recommendations API returned an invalid response.'
-
-        );
-
+        throw new Error('The recommendations API returned an invalid response.');
       }
 
       setRecommendations(data.items);
-
       setPagination((prev) => ({
-
         ...prev,
-
         totalCount: data.total_count,
-
         filteredCount: data.filtered_count,
-
         totalPages: data.total_pages,
-
       }));
-
     } catch (err) {
-
+      if (currentReqId !== latestRecsReqId.current) return;
       console.error('Error fetching recommendations:', err);
-
-      setRecommendationsError(
-
-        err.message || 'Unable to load customer recommendations.'
-
-      );
-
+      setRecommendationsError(err.message || 'Unable to load customer recommendations.');
       setRecommendations([]);
-
     }
-
   }, [
-
+    activeSimulationId,
     pagination.page,
-
     pagination.pageSize,
-
     searchQuery,
-
     discountFilter,
-
     incomeTierFilter,
-
     loyaltyFilter,
-
     sortBy,
-
     sortOrder,
-
   ]);
+
+  const handleExportRecommendations = () => {
+    const params = new URLSearchParams();
+    if (activeSimulationId) params.append('simulation_id', activeSimulationId);
+    if (searchQuery.trim()) params.append('search', searchQuery.trim());
+    if (discountFilter !== '') params.append('discount', discountFilter);
+    if (incomeTierFilter !== '') params.append('income_tier', incomeTierFilter);
+    if (loyaltyFilter !== '') params.append('loyalty', loyaltyFilter);
+    params.append('format', 'csv');
+
+    const downloadUrl = `/api/recommendations/export?${params.toString()}`;
+    const anchor = document.createElement('a');
+    anchor.href = downloadUrl;
+    anchor.download = `recommendations_${activeSimulationId ? 'simulation' : 'baseline'}.csv`;
+    document.body.appendChild(anchor);
+    anchor.click();
+    document.body.removeChild(anchor);
+  };
 
   useEffect(() => {
 
@@ -858,69 +861,96 @@ export default function App() {
   // --------------------------------------------------------------------------
 
   const handleRunSimulation = async (e) => {
+    if (e && e.preventDefault) e.preventDefault();
+    setSimError(null);
 
-    e.preventDefault();
+    const numericBudget = Number(simBudget);
+    if (isNaN(numericBudget) || !isFinite(numericBudget)) {
+      setSimError('Budget must be a finite numeric value.');
+      return;
+    }
+    if (numericBudget < 0) {
+      setSimError('Budget cannot be negative (minimum ₹0).');
+      return;
+    }
+    if (numericBudget > 1000000) {
+      setSimError('Budget cannot exceed ₹10,00,000 (₹1,000,000).');
+      return;
+    }
 
+    const currentReqId = ++latestSimReqId.current;
     setIsSimulating(true);
 
     try {
-
       const res = await fetch('/api/simulate', {
-
         method: 'POST',
-
         headers: { 'Content-Type': 'application/json' },
-
         body: JSON.stringify({
-
-          budget: Number(simBudget),
-
+          budget: numericBudget,
           margin_ratio: Number(simMargin) / 100.0,
-
           budget_type: simBudgetType,
-
           solver: simSolver,
-
+          objective: simObjective,
         }),
-
       });
 
+      if (currentReqId !== latestSimReqId.current) return;
+
       if (!res.ok) {
-
-        const errData = await res.json();
-
-        throw new Error(errData.detail || 'Simulation failed.');
-
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.detail || 'Simulation optimization failed.');
       }
 
       const data = await res.json();
+      if (currentReqId !== latestSimReqId.current) return;
 
-      setSimulationResult(data.performance);
-
+      setSimulationResult({
+        ...data.performance,
+        simulation_id: data.simulation_id,
+        inputs: data.inputs,
+      });
+      setSimError(null);
     } catch (err) {
-
-      alert(`Simulation Error: ${err.message}`);
-
+      if (currentReqId !== latestSimReqId.current) return;
+      console.error('Simulation error:', err);
+      setSimError(err.message || 'Simulation request failed.');
     } finally {
-
-      setIsSimulating(false);
-
+      if (currentReqId === latestSimReqId.current) {
+        setIsSimulating(false);
+      }
     }
+  };
 
+  const handleApplySimulationToAllocations = (sim) => {
+    const targetSim = sim || simulationResult;
+    if (!targetSim || !targetSim.simulation_id) return;
+    setActiveSimulationId(targetSim.simulation_id);
+    setActiveSimulationMeta({
+      simulation_id: targetSim.simulation_id,
+      budget: targetSim.total_budget ?? simBudget,
+      objective: targetSim.objective ?? simObjective,
+      solver: targetSim.solver_used ?? simSolver,
+      margin: simMargin,
+    });
+    setPagination((prev) => ({ ...prev, page: 1 }));
+    setActiveTab('recommendations');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleResetToBaselineAllocations = () => {
+    setActiveSimulationId(null);
+    setActiveSimulationMeta(null);
+    setPagination((prev) => ({ ...prev, page: 1 }));
   };
 
   const handleResetSimulation = () => {
-
     setSimBudget(50000);
-
     setSimMargin(30);
-
     setSimBudgetType('allocated');
-
     setSimSolver('milp');
-
+    setSimObjective('max_profit');
     setSimulationResult(null);
-
+    setSimError(null);
   };
 
   const handleSort = (columnKey) => {
@@ -2375,227 +2405,289 @@ export default function App() {
           </div>
 
           <div className="panel-actions">
-
             {simulationResult && (
-
-              <button className="btn btn-secondary" onClick={handleResetSimulation}>
-
+              <button type="button" className="btn btn-secondary" onClick={handleResetSimulation}>
                 Reset to Baseline
-
               </button>
-
             )}
-
             <button
-
+              type="button"
               className="btn btn-primary"
-
               onClick={handleRunSimulation}
-
               disabled={isSimulating}
-
             >
-
-              {isSimulating ? 'Optimizing...' : 'Simulate Allocation'}
-
+              {isSimulating ? 'Optimizing Allocation...' : 'Simulate Allocation'}
             </button>
-
           </div>
-
         </div>
 
-        <form className="controls-form" onSubmit={handleRunSimulation}>
+        {simError && (
+          <div className="error-card" role="alert" style={{ marginTop: '1rem', marginBottom: '0.5rem' }}>
+            <div style={{ fontWeight: 700, color: 'var(--color-danger, #DC2626)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <span>⚠️</span>
+              <span>Simulation Error</span>
+            </div>
+            <p style={{ margin: '4px 0 0 0' }}>{simError}</p>
+          </div>
+        )}
 
-          {/* Control 1: Campaign Budget Slider */}
-
+        <form className="controls-form" onSubmit={handleRunSimulation} style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))' }}>
+          {/* Control 1: Campaign Budget Input & Slider */}
           <div className="control-group">
-
             <div className="control-label">
-
               <span>Total Budget (B)</span>
-
-              <span className="control-val-display">₹{Number(simBudget).toLocaleString()}</span>
-
+              <span className="control-val-display">₹{Number(simBudget || 0).toLocaleString()}</span>
             </div>
-
-            <input
-
-              type="range"
-
-              min="5000"
-
-              max="150000"
-
-              step="5000"
-
-              value={simBudget}
-
-              onChange={(e) => setSimBudget(Number(e.target.value))}
-
-              className="range-slider"
-
-            />
-
+            <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+              <input
+                type="number"
+                min="0"
+                max="1000000"
+                step="1000"
+                value={simBudget}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  if (val === '') {
+                    setSimBudget('');
+                  } else {
+                    const parsed = Number(val);
+                    setSimBudget(isNaN(parsed) ? 0 : Math.max(0, Math.min(1000000, parsed)));
+                  }
+                }}
+                className="select-control"
+                style={{ width: '130px', fontFamily: 'var(--font-mono, monospace)', fontWeight: 600, padding: '4px 8px' }}
+                placeholder="₹ Budget"
+              />
+              <input
+                type="range"
+                min="0"
+                max="1000000"
+                step="5000"
+                value={Number(simBudget) || 0}
+                onChange={(e) => setSimBudget(Number(e.target.value))}
+                className="range-slider"
+                style={{ flex: 1 }}
+              />
+            </div>
+            <span style={{ fontSize: '0.725rem', color: 'var(--text-secondary, #64748B)' }}>
+              Range: ₹0 to ₹10,00,000 (Default: ₹50,000). Zero budget yields ₹0 allocations.
+            </span>
           </div>
 
-          {/* Control 2: Gross Contribution Margin Slider */}
-
+          {/* Control 2: Optimization Objective Selector */}
           <div className="control-group">
-
             <div className="control-label">
+              <span>Optimization Objective</span>
+              <span className="control-val-display" style={{ textTransform: 'capitalize' }}>
+                {simObjective === 'max_profit' ? 'Profit' : 'Conversions'}
+              </span>
+            </div>
+            <div className="toggle-group">
+              <button
+                type="button"
+                className={`toggle-btn ${simObjective === 'max_profit' ? 'active' : ''}`}
+                onClick={() => setSimObjective('max_profit')}
+                title="Maximize expected incremental contribution profit in INR"
+              >
+                💰 Maximize Profit
+              </button>
+              <button
+                type="button"
+                className={`toggle-btn ${simObjective === 'max_conversions' ? 'active' : ''}`}
+                onClick={() => setSimObjective('max_conversions')}
+                title="Maximize estimated incremental purchase conversions (orders)"
+              >
+                🎯 Max Conversions
+              </button>
+            </div>
+            <span style={{ fontSize: '0.725rem', color: 'var(--text-secondary, #64748B)' }}>
+              {simObjective === 'max_profit'
+                ? 'Objective: Maximize incremental profit (margin - deadweight cannibalization).'
+                : 'Objective: Maximize incremental purchase conversions under the budget cap.'}
+            </span>
+          </div>
 
+          {/* Control 3: Gross Contribution Margin Slider */}
+          <div className="control-group">
+            <div className="control-label">
               <span>Contribution Margin (m)</span>
-
               <span className="control-val-display">{simMargin}%</span>
-
             </div>
-
             <input
-
               type="range"
-
               min="10"
-
               max="60"
-
               step="5"
-
               value={simMargin}
-
               onChange={(e) => setSimMargin(Number(e.target.value))}
-
               className="range-slider"
-
             />
-
+            <span style={{ fontSize: '0.725rem', color: 'var(--text-secondary, #64748B)' }}>
+              Gross margin applied to baseline basket value (10% to 60%).
+            </span>
           </div>
 
-          {/* Control 3: Budget Type Toggle */}
-
+          {/* Control 4: Budget Type Toggle */}
           <div className="control-group">
-
             <div className="control-label">
-
               <span>Liability Mode</span>
-
             </div>
-
             <div className="toggle-group">
-
               <button
-
                 type="button"
-
                 className={`toggle-btn ${simBudgetType === 'allocated' ? 'active' : ''}`}
-
                 onClick={() => setSimBudgetType('allocated')}
-
               >
-
                 Nominal (Allocated)
-
               </button>
-
               <button
-
                 type="button"
-
                 className={`toggle-btn ${simBudgetType === 'redeemed' ? 'active' : ''}`}
-
                 onClick={() => setSimBudgetType('redeemed')}
-
               >
-
                 Expected (Redeemed)
-
               </button>
-
             </div>
-
+            <span style={{ fontSize: '0.725rem', color: 'var(--text-secondary, #64748B)' }}>
+              {simBudgetType === 'allocated' ? 'Nominal face value (sum of coupon values).' : 'Expected cost probability-weighted by conversion.'}
+            </span>
           </div>
 
-          {/* Control 4: Solver Engine Toggle */}
-
+          {/* Control 5: Solver Engine Toggle */}
           <div className="control-group">
-
             <div className="control-label">
-
               <span>Solver Engine</span>
-
             </div>
-
             <div className="toggle-group">
-
               <button
-
                 type="button"
-
                 className={`toggle-btn ${simSolver === 'milp' ? 'active' : ''}`}
-
                 onClick={() => setSimSolver('milp')}
-
               >
-
                 HiGHS MILP (Exact)
-
               </button>
-
               <button
-
                 type="button"
-
                 className={`toggle-btn ${simSolver === 'greedy' ? 'active' : ''}`}
-
                 onClick={() => setSimSolver('greedy')}
-
               >
-
                 Greedy Heuristic
-
               </button>
-
             </div>
-
+            <span style={{ fontSize: '0.725rem', color: 'var(--text-secondary, #64748B)' }}>
+              Exact knapsack solution or fast marginal ratio heuristic.
+            </span>
           </div>
-
         </form>
 
         {simulationResult && (
+          <div
+            className="sim-result-card"
+            style={{
+              marginTop: '1.25rem',
+              padding: '1.25rem 1.5rem',
+              borderRadius: 'var(--radius-lg, 12px)',
+              background: 'var(--bg-card, #FFFFFF)',
+              border: '1px solid rgba(217, 37, 61, 0.35)',
+              boxShadow: 'var(--shadow-card, 0 4px 12px rgba(0,0,0,0.06))',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '1rem',
+            }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span style={{ fontSize: '1.2rem' }}>⚡</span>
+                  <span style={{ fontWeight: 700, fontSize: '1.05rem', color: 'var(--text-primary, #0F172A)' }}>
+                    Active Simulation Result
+                  </span>
+                  <span
+                    style={{
+                      fontFamily: 'var(--font-mono, monospace)',
+                      fontSize: '0.75rem',
+                      background: 'rgba(217, 37, 61, 0.12)',
+                      color: 'var(--color-primary, #D9253D)',
+                      padding: '2px 8px',
+                      borderRadius: '4px',
+                      fontWeight: 600,
+                    }}
+                  >
+                    {simulationResult.simulation_id}
+                  </span>
+                </div>
+                <div style={{ fontSize: '0.825rem', color: 'var(--text-secondary, #64748B)', marginTop: '2px' }}>
+                  Budget: ₹{Number(simulationResult.total_budget).toLocaleString()} | Objective:{' '}
+                  <strong>{simulationResult.objective === 'max_conversions' ? 'Maximize Incremental Conversions' : 'Maximize Incremental Profit'}</strong> | Solver:{' '}
+                  <strong>{simulationResult.solver_used?.toUpperCase() ?? simSolver.toUpperCase()}</strong> | Margin: {simMargin}%
+                </div>
+              </div>
 
-          <div className="sim-result-alert">
-
-            <div>
-
-              <strong>Active Simulation:</strong> Solved for ₹{Number(simBudget).toLocaleString()} budget @ {simMargin}% margin using {simSolver.toUpperCase()}.
-
+              <div style={{ display: 'flex', gap: '10px' }}>
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  onClick={() => handleApplySimulationToAllocations(simulationResult)}
+                  style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
+                >
+                  <span>📋</span>
+                  <span>View These Allocations ({Number(simulationResult.total_discounted_customers).toLocaleString()} targeted) →</span>
+                </button>
+              </div>
             </div>
 
-            <div className="sim-result-metrics">
+            <div
+              className="sim-result-metrics-grid"
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+                gap: '12px',
+                paddingTop: '8px',
+                borderTop: '1px solid var(--border, #E2E8F0)',
+              }}
+            >
+              <div style={{ padding: '8px 12px', background: 'var(--bg-muted, rgba(0,0,0,0.02))', borderRadius: '8px' }}>
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary, #64748B)' }}>Allocated Spend</div>
+                <div style={{ fontSize: '1.1rem', fontWeight: 700, fontFamily: 'var(--font-mono, monospace)', color: 'var(--color-primary, #D9253D)' }}>
+                  ₹{Number(simulationResult.allocated_budget).toLocaleString()}
+                </div>
+                <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary, #64748B)' }}>
+                  {simulationResult.budget_utilization_pct}% utilization
+                </div>
+              </div>
 
-              <span className="sim-metric-item">
+              <div style={{ padding: '8px 12px', background: 'var(--bg-muted, rgba(0,0,0,0.02))', borderRadius: '8px' }}>
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary, #64748B)' }}>Targeted Customers</div>
+                <div style={{ fontSize: '1.1rem', fontWeight: 700, fontFamily: 'var(--font-mono, monospace)' }}>
+                  {Number(simulationResult.total_discounted_customers).toLocaleString()}
+                </div>
+                <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary, #64748B)' }}>
+                  {simulationResult.selected_pct}% of total customer base
+                </div>
+              </div>
 
-                Profit: <strong>₹{simulationResult.estimated_incremental_profit_inr?.toLocaleString()}</strong>
+              <div style={{ padding: '8px 12px', background: 'var(--bg-muted, rgba(0,0,0,0.02))', borderRadius: '8px' }}>
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary, #64748B)' }}>Incremental Purchases</div>
+                <div style={{ fontSize: '1.1rem', fontWeight: 700, fontFamily: 'var(--font-mono, monospace)', color: 'var(--color-cyan, #06B6D4)' }}>
+                  +{Number(simulationResult.estimated_incremental_purchases).toFixed(1)}
+                </div>
+                <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary, #64748B)' }}>
+                  Avg uplift: +{simulationResult.avg_incremental_uplift_pct}%
+                </div>
+              </div>
 
-              </span>
-
-              <span className="sim-metric-item">
-
-                Orders: <strong>+{simulationResult.estimated_incremental_purchases?.toFixed(1)}</strong>
-
-              </span>
-
-              <span className="sim-metric-item">
-
-                RODS: <strong>{simulationResult.return_on_discount_spend}x</strong>
-
-              </span>
-
+              <div style={{ padding: '8px 12px', background: 'var(--bg-muted, rgba(0,0,0,0.02))', borderRadius: '8px' }}>
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary, #64748B)' }}>Incremental Profit</div>
+                <div style={{ fontSize: '1.1rem', fontWeight: 700, fontFamily: 'var(--font-mono, monospace)', color: 'var(--color-emerald, #10B981)' }}>
+                  ₹{Number(simulationResult.estimated_incremental_profit_inr).toLocaleString()}
+                </div>
+                <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary, #64748B)' }}>
+                  Return on spend (RODS): {simulationResult.return_on_discount_spend}x
+                </div>
+              </div>
             </div>
-
           </div>
-
         )}
-
       </section>
 
       
@@ -2971,6 +3063,60 @@ export default function App() {
          -------------------------------------------------------------------- */}
 
       <section className="recommendations-section">
+        {/* Active Simulation / Baseline Status Banner */}
+        <div
+          className={`recommendations-status-banner ${activeSimulationId ? 'is-simulation' : 'is-baseline'}`}
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            flexWrap: 'wrap',
+            gap: '12px',
+            padding: '12px 18px',
+            marginBottom: '16px',
+            borderRadius: 'var(--radius-md, 8px)',
+            background: activeSimulationId ? 'rgba(217, 37, 61, 0.08)' : 'var(--bg-card, #FFFFFF)',
+            border: `1px solid ${activeSimulationId ? 'rgba(217, 37, 61, 0.35)' : 'var(--border, #E2E8F0)'}`,
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <span style={{ fontSize: '1.3rem' }}>{activeSimulationId ? '⚡' : '📌'}</span>
+            <div>
+              <div style={{ fontWeight: 700, fontSize: '0.95rem', color: activeSimulationId ? 'var(--color-primary, #D9253D)' : 'var(--text-primary, #0F172A)' }}>
+                {activeSimulationId
+                  ? `Viewing Custom Simulation Allocations (${activeSimulationId})`
+                  : 'Viewing Baseline Recommendations (Production Benchmark Policy)'}
+              </div>
+              <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary, #64748B)', marginTop: '2px' }}>
+                {activeSimulationId
+                  ? `Custom simulated policy with budget ₹${Number(activeSimulationMeta?.budget ?? simBudget).toLocaleString()} | Objective: ${activeSimulationMeta?.objective === 'max_conversions' ? 'Maximize Incremental Conversions' : 'Maximize Incremental Profit'} | Solver: ${activeSimulationMeta?.solver?.toUpperCase() ?? simSolver.toUpperCase()}`
+                  : 'Derived from ₹50,000 promotional budget via HiGHS MILP Knapsack optimization'}
+              </div>
+            </div>
+          </div>
+          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+            {activeSimulationId && (
+              <button
+                type="button"
+                className="btn btn-secondary"
+                style={{ fontSize: '0.8rem', padding: '6px 12px' }}
+                onClick={handleResetToBaselineAllocations}
+                title="Return to viewing baseline benchmark allocations"
+              >
+                ← Return to Baseline Allocations
+              </button>
+            )}
+            <button
+              type="button"
+              className="btn btn-secondary"
+              style={{ fontSize: '0.8rem', padding: '6px 12px' }}
+              onClick={handleExportRecommendations}
+              title="Download CSV of allocations matching current view and filters"
+            >
+              📥 Export Allocations (CSV)
+            </button>
+          </div>
+        </div>
 
         <div className="table-toolbar">
 
@@ -3128,11 +3274,16 @@ export default function App() {
 
             <p>{recommendationsError}</p>
 
-            <button className="btn btn-secondary" onClick={fetchRecommendations}>
-
-              Retry Recommendations
-
-            </button>
+            <div style={{ display: 'flex', gap: '10px', marginTop: '8px' }}>
+              <button className="btn btn-secondary" onClick={fetchRecommendations}>
+                Retry Recommendations
+              </button>
+              {activeSimulationId && (
+                <button className="btn btn-primary" onClick={handleResetToBaselineAllocations}>
+                  Switch to Baseline Recommendations
+                </button>
+              )}
+            </div>
 
           </div>
 

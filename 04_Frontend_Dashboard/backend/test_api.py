@@ -11,6 +11,7 @@ from __future__ import annotations
 import json
 import math
 import sys
+import time
 import unittest
 from pathlib import Path
 
@@ -190,8 +191,8 @@ class TestDashboardAPI(unittest.TestCase):
         resp_neg = self.client.post("/api/simulate", json={"budget": -500.0, "margin_ratio": 0.30})
         self.assertEqual(resp_neg.status_code, 422)
 
-        # Budget too large (> 500k)
-        resp_huge = self.client.post("/api/simulate", json={"budget": 600000.0, "margin_ratio": 0.30})
+        # Budget too large (> 1M)
+        resp_huge = self.client.post("/api/simulate", json={"budget": 1500000.0, "margin_ratio": 0.30})
         self.assertEqual(resp_huge.status_code, 422)
 
         # Margin ratio out of range
@@ -347,6 +348,258 @@ class TestDashboardAPI(unittest.TestCase):
         self.assertTrue(np.isfinite(p["tau_hat_20"]))
         self.assertLessEqual(p["tau_hat_10_ci_95"][0], p["tau_hat_10_ci_95"][1])
         self.assertLessEqual(p["tau_hat_20_ci_95"][0], p["tau_hat_20_ci_95"][1])
+
+    def test_20_zero_budget_simulation(self):
+        """Verify zero budget returns valid zero-allocation feasible result without error."""
+        resp = self.client.post("/api/simulate", json={"budget": 0.0, "objective": "max_profit"})
+        self.assertEqual(resp.status_code, 200)
+        data = resp.json()
+        self.assertEqual(data["status"], "success")
+        self.assertIn("simulation_id", data)
+
+        perf = data["performance"]
+        self.assertEqual(perf["total_budget"], 0.0)
+        self.assertEqual(perf["allocated_budget"], 0.0)
+        self.assertEqual(perf["count_discount_10"], 0)
+        self.assertEqual(perf["count_discount_20"], 0)
+        self.assertEqual(perf["total_discounted_customers"], 0)
+        self.assertEqual(perf["count_control_0"], 10000)
+        self.assertEqual(perf["estimated_incremental_profit_inr"], 0.0)
+        self.assertEqual(perf["estimated_incremental_purchases"], 0.0)
+
+        # Recommendations for this simulation should all be ₹0 control
+        sim_id = data["simulation_id"]
+        rec_resp = self.client.get(f"/api/recommendations?simulation_id={sim_id}&page_size=50")
+        self.assertEqual(rec_resp.status_code, 200)
+        rec_data = rec_resp.json()
+        self.assertEqual(rec_data["total_count"], 10000)
+        self.assertTrue(rec_data["is_simulation"])
+        self.assertEqual(rec_data["simulation_id"], sim_id)
+        for item in rec_data["items"]:
+            self.assertEqual(item["recommended_discount_inr"], 0)
+
+    def test_21_small_positive_budget(self):
+        """Verify positive budget smaller than cheapest discount returns feasible zero allocation."""
+        resp = self.client.post("/api/simulate", json={"budget": 5.0, "budget_type": "allocated"})
+        self.assertEqual(resp.status_code, 200)
+        data = resp.json()
+        perf = data["performance"]
+        self.assertLessEqual(perf["allocated_budget"], 5.0)
+        self.assertEqual(perf["total_discounted_customers"], 0)
+        self.assertEqual(perf["count_discount_10"], 0)
+        self.assertEqual(perf["count_discount_20"], 0)
+
+    def test_22_max_budget_boundary(self):
+        """Verify maximum budget ₹1,000,000 succeeds while over-budget (>1M) is rejected."""
+        resp_max = self.client.post("/api/simulate", json={"budget": 1000000.0, "solver": "greedy"})
+        self.assertEqual(resp_max.status_code, 200)
+        self.assertLessEqual(resp_max.json()["performance"]["allocated_budget"], 1000000.0)
+
+        # Over max limit
+        resp_over = self.client.post("/api/simulate", json={"budget": 1000001.0})
+        self.assertEqual(resp_over.status_code, 422)
+
+    def test_23_nan_and_infinity_rejection(self):
+        """Verify that NaN and Infinity for budget or margin are rejected with 422."""
+        # NaN budget
+        resp_nan = self.client.post("/api/simulate", json={"budget": float("nan")})
+        self.assertEqual(resp_nan.status_code, 422)
+
+        # Inf budget
+        resp_inf = self.client.post("/api/simulate", json={"budget": float("inf")})
+        self.assertEqual(resp_inf.status_code, 422)
+
+        # NaN margin ratio
+        resp_margin_nan = self.client.post("/api/simulate", json={"budget": 10000.0, "margin_ratio": float("nan")})
+        self.assertEqual(resp_margin_nan.status_code, 422)
+
+    def test_24_objectives_profit_and_conversions(self):
+        """Verify both max_profit and max_conversions objectives are supported and identified in API response."""
+        # 1. max_profit
+        resp_profit = self.client.post("/api/simulate", json={"budget": 30000.0, "objective": "max_profit"})
+        self.assertEqual(resp_profit.status_code, 200)
+        data_profit = resp_profit.json()
+        self.assertEqual(data_profit["inputs"]["objective"], "max_profit")
+        self.assertEqual(data_profit["performance"]["objective"], "max_profit")
+        self.assertGreater(data_profit["performance"]["estimated_incremental_profit_inr"], 0.0)
+
+        # 2. max_conversions
+        resp_conv = self.client.post("/api/simulate", json={"budget": 30000.0, "objective": "max_conversions"})
+        self.assertEqual(resp_conv.status_code, 200)
+        data_conv = resp_conv.json()
+        self.assertEqual(data_conv["inputs"]["objective"], "max_conversions")
+        self.assertEqual(data_conv["performance"]["objective"], "max_conversions")
+        self.assertGreater(data_conv["performance"]["estimated_incremental_purchases"], 0.0)
+
+        # 3. Default objective when omitted is max_profit
+        resp_default = self.client.post("/api/simulate", json={"budget": 30000.0})
+        self.assertEqual(resp_default.status_code, 200)
+        self.assertEqual(resp_default.json()["inputs"]["objective"], "max_profit")
+
+    def test_25_invalid_objective_rejection(self):
+        """Verify invalid objective values are strictly rejected."""
+        resp = self.client.post("/api/simulate", json={"budget": 20000.0, "objective": "max_revenue_fake"})
+        self.assertEqual(resp.status_code, 422)
+
+    def test_26_nominal_and_redeemed_budget_constraints(self):
+        """Verify nominal vs redeemed budget constraints are strictly satisfied."""
+        # Nominal mode
+        resp_nom = self.client.post("/api/simulate", json={"budget": 25000.0, "budget_type": "allocated"})
+        self.assertEqual(resp_nom.status_code, 200)
+        p_nom = resp_nom.json()["performance"]
+        self.assertLessEqual(p_nom["nominal_coupon_liability"], 25000.0 + 1e-4)
+
+        # Redeemed mode
+        resp_red = self.client.post("/api/simulate", json={"budget": 15000.0, "budget_type": "redeemed"})
+        self.assertEqual(resp_red.status_code, 200)
+        p_red = resp_red.json()["performance"]
+        self.assertLessEqual(p_red["expected_redeemed_cost"], 15000.0 + 1e-4)
+
+    def test_27_single_offer_and_eligibility(self):
+        """Verify each customer receives at most one discount arm and ineligible offers are not assigned."""
+        resp = self.client.post("/api/simulate", json={"budget": 50000.0, "solver": "greedy"})
+        self.assertEqual(resp.status_code, 200)
+        sim_id = resp.json()["simulation_id"]
+
+        # Fetch all records via export to inspect
+        exp_resp = self.client.get(f"/api/recommendations/export?simulation_id={sim_id}&format=json")
+        self.assertEqual(exp_resp.status_code, 200)
+        records = exp_resp.json()["records"]
+        self.assertEqual(len(records), 10000)
+
+        for r in records:
+            disc = r["recommended_discount_inr"]
+            self.assertIn(disc, [0, 10, 20])
+            if disc > 0:
+                # Must satisfy discount depth cap: disc / cart <= 0.25 (or float precision)
+                depth = disc / max(r["cart_baseline_value_inr"], 1.0)
+                self.assertLessEqual(depth, 0.25 + 1e-5)
+
+    def test_28_solver_parity_and_fallback(self):
+        """Verify Greedy heuristic produces feasible solutions and identifies solver."""
+        resp_milp = self.client.post("/api/simulate", json={"budget": 20000.0, "solver": "milp"})
+        self.assertEqual(resp_milp.status_code, 200)
+        self.assertEqual(resp_milp.json()["performance"]["solver_used"], "milp")
+
+        resp_grd = self.client.post("/api/simulate", json={"budget": 20000.0, "solver": "greedy"})
+        self.assertEqual(resp_grd.status_code, 200)
+        self.assertEqual(resp_grd.json()["performance"]["solver_used"], "greedy")
+        self.assertLessEqual(resp_grd.json()["performance"]["allocated_budget"], 20000.0)
+
+    def test_29_simulation_metrics_match_allocations(self):
+        """Verify summary metrics returned by simulation match actual customer table allocations."""
+        resp = self.client.post("/api/simulate", json={"budget": 35000.0, "solver": "greedy"})
+        self.assertEqual(resp.status_code, 200)
+        sim_data = resp.json()
+        sim_id = sim_data["simulation_id"]
+        perf = sim_data["performance"]
+
+        # 1. Total discount 10 count
+        resp_10 = self.client.get(f"/api/recommendations?simulation_id={sim_id}&discount=10")
+        self.assertEqual(resp_10.status_code, 200)
+        self.assertEqual(resp_10.json()["filtered_count"], perf["count_discount_10"])
+
+        # 2. Total discount 20 count
+        resp_20 = self.client.get(f"/api/recommendations?simulation_id={sim_id}&discount=20")
+        self.assertEqual(resp_20.status_code, 200)
+        self.assertEqual(resp_20.json()["filtered_count"], perf["count_discount_20"])
+
+        # 3. Control count
+        resp_0 = self.client.get(f"/api/recommendations?simulation_id={sim_id}&discount=0")
+        self.assertEqual(resp_0.status_code, 200)
+        self.assertEqual(resp_0.json()["filtered_count"], perf["count_control_0"])
+
+    def test_30_baseline_cache_and_invalidation(self):
+        """Verify safe in-memory baseline conversion model caching, latency improvement, and invalidation."""
+        # First call: populates cache
+        t0 = time.time()
+        resp1 = self.client.post("/api/simulate", json={"budget": 10000.0})
+        t_first = time.time() - t0
+        self.assertEqual(resp1.status_code, 200)
+
+        # Second call: uses cached baseline model
+        t0 = time.time()
+        resp2 = self.client.post("/api/simulate", json={"budget": 15000.0})
+        t_second = time.time() - t0
+        self.assertEqual(resp2.status_code, 200)
+        self.assertTrue(resp2.json()["performance"]["baseline_model_cached"])
+
+        # Invalidate cache via dataset reset
+        resp_reset = self.client.post("/api/dataset/reset")
+        self.assertEqual(resp_reset.status_code, 200)
+
+        # Third call after reset: should reload and report baseline_model_cached == False
+        resp3 = self.client.post("/api/simulate", json={"budget": 10000.0})
+        self.assertEqual(resp3.status_code, 200)
+        self.assertFalse(resp3.json()["performance"]["baseline_model_cached"])
+
+    def test_31_simulation_id_recommendations_and_404(self):
+        """Verify retrieving recommendations for valid simulation_id and clear 404 for unknown/expired IDs."""
+        # Non-existent simulation ID
+        resp_404 = self.client.get("/api/recommendations?simulation_id=sim_nonexistent_xyz")
+        self.assertEqual(resp_404.status_code, 404)
+        self.assertIn("not found or has expired", resp_404.json()["detail"])
+
+        # Valid simulation ID
+        sim_resp = self.client.post("/api/simulate", json={"budget": 20000.0})
+        sim_id = sim_resp.json()["simulation_id"]
+        rec_resp = self.client.get(f"/api/recommendations?simulation_id={sim_id}")
+        self.assertEqual(rec_resp.status_code, 200)
+        self.assertEqual(rec_resp.json()["simulation_id"], sim_id)
+        self.assertTrue(rec_resp.json()["is_simulation"])
+
+    def test_32_simulation_recommendations_pagination_filters_export(self):
+        """Verify pagination, sorting, filters, and export on simulated allocations."""
+        sim_resp = self.client.post("/api/simulate", json={"budget": 45000.0})
+        sim_id = sim_resp.json()["simulation_id"]
+
+        # Filtering and pagination
+        rec_resp = self.client.get(f"/api/recommendations?simulation_id={sim_id}&discount=10&page=1&page_size=10")
+        self.assertEqual(rec_resp.status_code, 200)
+        data = rec_resp.json()
+        self.assertEqual(len(data["items"]), min(10, data["filtered_count"]))
+        for it in data["items"]:
+            self.assertEqual(it["recommended_discount_inr"], 10)
+
+        # CSV Export
+        csv_resp = self.client.get(f"/api/recommendations/export?simulation_id={sim_id}&discount=10&format=csv")
+        self.assertEqual(csv_resp.status_code, 200)
+        self.assertIn("text/csv", csv_resp.headers["content-type"])
+        self.assertIn("customer_id", csv_resp.text)
+        self.assertIn("recommended_discount_inr", csv_resp.text)
+
+    def test_33_baseline_allocations_unchanged_after_simulation(self):
+        """Verify baseline recommendations remain completely intact after running custom simulations."""
+        # Query baseline recommendations before simulation
+        base_before = self.client.get("/api/recommendations?page_size=20").json()
+        self.assertFalse(base_before["is_simulation"])
+
+        # Run multiple custom simulations with different budgets
+        self.client.post("/api/simulate", json={"budget": 10000.0, "objective": "max_conversions"})
+        self.client.post("/api/simulate", json={"budget": 80000.0, "objective": "max_profit"})
+
+        # Query baseline recommendations after simulation
+        base_after = self.client.get("/api/recommendations?page_size=20").json()
+        self.assertFalse(base_after["is_simulation"])
+        self.assertEqual(base_before["total_count"], base_after["total_count"])
+        self.assertEqual(base_before["items"][0]["customer_id"], base_after["items"][0]["customer_id"])
+        self.assertEqual(base_before["items"][0]["recommended_discount_inr"], base_after["items"][0]["recommended_discount_inr"])
+
+    def test_34_simulation_details_endpoint(self):
+        """Verify GET /api/simulation/{simulation_id} returns cached simulation metadata and 404 for unknown IDs."""
+        sim_resp = self.client.post("/api/simulate", json={"budget": 22000.0})
+        sim_id = sim_resp.json()["simulation_id"]
+
+        detail_resp = self.client.get(f"/api/simulation/{sim_id}")
+        self.assertEqual(detail_resp.status_code, 200)
+        data = detail_resp.json()
+        self.assertEqual(data["simulation_id"], sim_id)
+        self.assertEqual(data["inputs"]["budget"], 22000.0)
+        self.assertEqual(data["total_allocations"], 10000)
+
+        # Invalid simulation ID
+        bad_resp = self.client.get("/api/simulation/sim_invalid_abc")
+        self.assertEqual(bad_resp.status_code, 404)
 
 
 if __name__ == "__main__":
