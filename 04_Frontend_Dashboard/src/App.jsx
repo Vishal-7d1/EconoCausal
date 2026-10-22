@@ -7,7 +7,7 @@ import {
   Boxes,
   Sparkles,
   BarChart3,
-  Settings,
+  Calculator,
   Store,
   ChevronDown,
 } from 'lucide-react';
@@ -15,6 +15,7 @@ import {
 import PlotlyChart from './components/PlotlyChart';
 import DashboardOverview from './components/DashboardOverview';
 import TopNavbar from './components/TopNavbar';
+import CatePredictor from './components/CatePredictor';
 
 import './App.css';
 import './NavigationShell.css';
@@ -145,6 +146,7 @@ function csvEscape(value) {
 const navigationItems = [
   { id: 'overview', label: 'Executive Dashboard', icon: <LayoutDashboard size={18} /> },
   { id: 'dataset', label: 'Dataset Explorer', icon: <Package size={18} /> },
+  { id: 'cate-prediction', label: 'CATE Predictor', icon: <Calculator size={18} /> },
   { id: 'insights', label: 'Causal Uplift & HTE', icon: <Sparkles size={18} /> },
   { id: 'simulator', label: 'Budget Simulator', icon: <Sliders size={18} /> },
   { id: 'recommendations', label: 'Customer Allocations', icon: <Target size={18} /> },
@@ -1999,6 +2001,18 @@ export default function App() {
             </>
           )}
         </section>
+      )}
+
+      {activeTab === 'cate-prediction' && (
+        <CatePredictor
+          theme={theme}
+          onNavigate={(tab) => {
+            setActiveTab(tab);
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+            const mainArea = document.querySelector('.ec-main-area');
+            if (mainArea) mainArea.scrollTo({ top: 0, behavior: 'smooth' });
+          }}
+        />
       )}
 
       {activeTab === 'methodology' && (

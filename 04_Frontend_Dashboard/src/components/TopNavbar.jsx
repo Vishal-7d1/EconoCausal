@@ -33,6 +33,7 @@ import {
   RotateCcw,
   Sparkles,
   ExternalLink,
+  Calculator,
 } from 'lucide-react';
 import './TopNavbar.css';
 
@@ -431,6 +432,18 @@ export default function TopNavbar({
               >
                 <span>Dataset Explorer (10,000 Cohort)</span>
                 <ExternalLink size={14} />
+              </button>
+
+              <button
+                type="button"
+                className="top-popover-action-item"
+                onClick={() => {
+                  setProfileMenuOpen(false);
+                  if (onNavigate) onNavigate('cate-prediction');
+                }}
+              >
+                <span>CATE Predictor (Live DML)</span>
+                <Calculator size={14} />
               </button>
             </div>
           )}
