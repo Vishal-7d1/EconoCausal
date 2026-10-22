@@ -326,6 +326,40 @@ class TestBudgetOptimization(unittest.TestCase):
         self.assertEqual(np.sum(w10_neg), 0)
         self.assertEqual(np.sum(w20_neg), 0)
 
+    def test_13_milp_solver_fallback_attribution(self):
+        """Verify that MILP fallback invokes greedy, maintains feasibility, and attributes solver accurately."""
+        from unittest.mock import patch
+        import optimize_budget as ob
+
+        v10 = np.array([10.0, 20.0, 5.0])
+        v20 = np.array([15.0, 25.0, 8.0])
+        c10 = np.array([10.0, 10.0, 10.0])
+        c20 = np.array([20.0, 20.0, 20.0])
+
+        # 1. Normal MILP returns solver_used == "milp"
+        res_normal = ob.solve_budget_optimization_milp(v10, v20, c10, c20, budget=30.0)
+        self.assertEqual(getattr(res_normal, "solver_used", None), "milp")
+
+        # 2. Mocked MILP failure returns solver_used == "greedy (fallback)"
+        class MockFailedResult:
+            success = False
+            status = -1
+            message = "Simulated solver failure"
+            x = None
+
+        with patch("optimize_budget.milp", return_value=MockFailedResult()):
+            res_fb = ob.solve_budget_optimization_milp(v10, v20, c10, c20, budget=30.0)
+            w10, w20, obj = res_fb
+            self.assertEqual(getattr(res_fb, "solver_used", None), "greedy (fallback)")
+            # Verify budget constraint holds
+            self.assertLessEqual(np.sum(10.0 * w10 + 20.0 * w20), 30.0)
+            # Verify single offer exclusivity holds
+            self.assertTrue(np.all(w10 + w20 <= 1))
+
+        # 3. Explicit return_solver=True parameter
+        w10_t, w20_t, obj_t, s_name = ob.solve_budget_optimization_milp(v10, v20, c10, c20, budget=30.0, return_solver=True)
+        self.assertEqual(s_name, "milp")
+
 
 def main():
     suite = unittest.TestLoader().loadTestsFromTestCase(TestBudgetOptimization)

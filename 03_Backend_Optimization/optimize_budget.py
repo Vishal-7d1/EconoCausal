@@ -354,13 +354,26 @@ def compute_offer_values_and_costs(
     return v10, v20, c10, c20
 
 
+class OptimizationResult(tuple):
+    """
+    Backward-compatible 3-element tuple (w10, w20, obj_val) that also carries
+    the actual solver identity via the .solver_used attribute.
+    """
+    def __new__(cls, w10: np.ndarray, w20: np.ndarray, obj_val: float, solver_used: str = "milp"):
+        return super().__new__(cls, (w10, w20, obj_val))
+
+    def __init__(self, w10: np.ndarray, w20: np.ndarray, obj_val: float, solver_used: str = "milp"):
+        self.solver_used = solver_used
+
+
 def solve_budget_optimization_milp(
     v10: np.ndarray,
     v20: np.ndarray,
     c10: np.ndarray,
     c20: np.ndarray,
     budget: float,
-    allow_multiple: bool = False
+    allow_multiple: bool = False,
+    return_solver: bool = False
 ) -> Tuple[np.ndarray, np.ndarray, float]:
     """
     Solve Multiple-Choice Knapsack budget allocation using scipy.optimize.milp (HiGHS solver).
@@ -370,13 +383,19 @@ def solve_budget_optimization_milp(
         c10, c20: Budget cost arrays for ₹10 and ₹20 arms (N,).
         budget: Total budget constraint B.
         allow_multiple: Whether a customer can receive both offers (default False).
+        return_solver: If True, returns (w10, w20, obj_val, solver_used).
+                       If False (default), returns OptimizationResult(w10, w20, obj_val)
+                       which unpacks as 3 elements and exposes .solver_used.
 
     Returns:
-        Tuple of (w10, w20, obj_val).
+        OptimizationResult (unpacks as w10, w20, obj_val with .solver_used attribute)
+        or Tuple of (w10, w20, obj_val, solver_used) if return_solver is True.
     """
     N = len(v10)
     if budget <= 0.0:
-        return np.zeros(N, dtype=int), np.zeros(N, dtype=int), 0.0
+        if return_solver:
+            return np.zeros(N, dtype=int), np.zeros(N, dtype=int), 0.0, "milp"
+        return OptimizationResult(np.zeros(N, dtype=int), np.zeros(N, dtype=int), 0.0, solver_used="milp")
 
     # Decision variables vector x of length 2*N:
     # [w_{0, 10}, w_{0, 20}, w_{1, 10}, w_{1, 20}, ..., w_{N-1, 10}, w_{N-1, 20}]
@@ -414,14 +433,19 @@ def solve_budget_optimization_milp(
 
     if not res.success or res.x is None:
         print(f"[!] Warning: MILP solver exited with status {getattr(res, 'status', 'UNKNOWN')}: {getattr(res, 'message', 'No message')}. Falling back to greedy allocation.")
-        return solve_budget_optimization_greedy(v10, v20, c10, c20, budget=budget, allow_multiple=allow_multiple)
+        w10_g, w20_g, obj_g = solve_budget_optimization_greedy(v10, v20, c10, c20, budget=budget, allow_multiple=allow_multiple)
+        if return_solver:
+            return w10_g, w20_g, obj_g, "greedy (fallback)"
+        return OptimizationResult(w10_g, w20_g, obj_g, solver_used="greedy (fallback)")
 
     sol = np.round(np.clip(res.x, 0.0, 1.0)).astype(int)
     w10 = sol[0::2]
     w20 = sol[1::2]
     obj_val = float(-res.fun) if hasattr(res, 'fun') and res.fun is not None else float(np.sum(w10 * v10 + w20 * v20))
 
-    return w10, w20, obj_val
+    if return_solver:
+        return w10, w20, obj_val, "milp"
+    return OptimizationResult(w10, w20, obj_val, solver_used="milp")
 
 
 def solve_budget_optimization_greedy(
@@ -430,7 +454,8 @@ def solve_budget_optimization_greedy(
     c10: np.ndarray,
     c20: np.ndarray,
     budget: float,
-    allow_multiple: bool = False
+    allow_multiple: bool = False,
+    return_solver: bool = False
 ) -> Tuple[np.ndarray, np.ndarray, float]:
     """
     Solve budget allocation using Greedy Marginal Return on Spend heuristic.
@@ -441,11 +466,14 @@ def solve_budget_optimization_greedy(
               r_{i, 20-10} = (v_{i, 20} - v_{i, 10}) / (c_{i, 20} - c_{i, 10}).
 
     Returns:
-        Tuple of (w10, w20, obj_val).
+        OptimizationResult (unpacks as w10, w20, obj_val with .solver_used attribute)
+        or Tuple of (w10, w20, obj_val, solver_used) if return_solver is True.
     """
     N = len(v10)
     if budget <= 0.0:
-        return np.zeros(N, dtype=int), np.zeros(N, dtype=int), 0.0
+        if return_solver:
+            return np.zeros(N, dtype=int), np.zeros(N, dtype=int), 0.0, "greedy"
+        return OptimizationResult(np.zeros(N, dtype=int), np.zeros(N, dtype=int), 0.0, solver_used="greedy")
 
     w10 = np.zeros(N, dtype=int)
     w20 = np.zeros(N, dtype=int)
@@ -489,7 +517,9 @@ def solve_budget_optimization_greedy(
         remaining_budget -= cost
 
     obj_val = float(np.sum(w10 * v10 + w20 * v20))
-    return w10, w20, obj_val
+    if return_solver:
+        return w10, w20, obj_val, "greedy"
+    return OptimizationResult(w10, w20, obj_val, solver_used="greedy")
 
 
 def evaluate_policy_performance(

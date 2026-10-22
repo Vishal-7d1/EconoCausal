@@ -954,15 +954,18 @@ def simulate_custom_optimization(req: SimulationRequest) -> Dict[str, Any]:
     )
 
     # 4. Solve allocation
-    actual_solver_used = req.solver
     if req.solver == "milp":
-        w10, w20, obj_val = ob.solve_budget_optimization_milp(
+        sol_res = ob.solve_budget_optimization_milp(
             v10, v20, c10, c20, budget=req.budget, allow_multiple=False
         )
+        w10, w20, obj_val = sol_res[0], sol_res[1], sol_res[2]
+        actual_solver_used = getattr(sol_res, "solver_used", "milp")
     else:
-        w10, w20, obj_val = ob.solve_budget_optimization_greedy(
+        sol_res = ob.solve_budget_optimization_greedy(
             v10, v20, c10, c20, budget=req.budget, allow_multiple=False
         )
+        w10, w20, obj_val = sol_res[0], sol_res[1], sol_res[2]
+        actual_solver_used = getattr(sol_res, "solver_used", "greedy")
 
     # Verify single-offer mutual exclusivity
     if np.any((w10 + w20) > 1):
@@ -986,7 +989,7 @@ def simulate_custom_optimization(req: SimulationRequest) -> Dict[str, Any]:
         )
 
     # 5. Evaluate simulated policy performance
-    policy_label = f"Simulated {req.solver.upper()} Policy ({'Max Profit' if req.objective == 'max_profit' else 'Max Conversions'})"
+    policy_label = f"Simulated {actual_solver_used.upper()} Policy ({'Max Profit' if req.objective == 'max_profit' else 'Max Conversions'})"
     sim_perf = ob.evaluate_policy_performance(
         df, w10, w20, p0_hat,
         margin_ratio=req.margin_ratio,

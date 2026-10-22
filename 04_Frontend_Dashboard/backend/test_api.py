@@ -502,15 +502,37 @@ class TestDashboardAPI(unittest.TestCase):
                 self.assertLessEqual(depth, 0.25 + 1e-5)
 
     def test_28_solver_parity_and_fallback(self):
-        """Verify Greedy heuristic produces feasible solutions and identifies solver."""
+        """Verify solver attribution for normal MILP, explicit greedy, and mocked MILP failure fallback."""
+        from unittest.mock import patch
+
+        # 1. Normal MILP solver attribution
         resp_milp = self.client.post("/api/simulate", json={"budget": 20000.0, "solver": "milp"})
         self.assertEqual(resp_milp.status_code, 200)
         self.assertEqual(resp_milp.json()["performance"]["solver_used"], "milp")
 
+        # 2. Explicit Greedy solver attribution
         resp_grd = self.client.post("/api/simulate", json={"budget": 20000.0, "solver": "greedy"})
         self.assertEqual(resp_grd.status_code, 200)
         self.assertEqual(resp_grd.json()["performance"]["solver_used"], "greedy")
         self.assertLessEqual(resp_grd.json()["performance"]["allocated_budget"], 20000.0)
+
+        # 3. Forced MILP failure mock -> Greedy fallback attribution and feasibility
+        class MockFailedResult:
+            success = False
+            status = -1
+            message = "Forced mock solver failure for fallback verification"
+            x = None
+
+        with patch("optimize_budget.milp", return_value=MockFailedResult()):
+            resp_fb = self.client.post("/api/simulate", json={"budget": 20000.0, "solver": "milp"})
+            self.assertEqual(resp_fb.status_code, 200)
+            perf_fb = resp_fb.json()["performance"]
+            # Must accurately report greedy (fallback), not the requested milp
+            self.assertEqual(perf_fb["solver_used"], "greedy (fallback)")
+            # Must satisfy budget constraint and maintain feasibility
+            self.assertLessEqual(perf_fb["allocated_budget"], 20000.0)
+            self.assertGreater(perf_fb["total_discounted_customers"], 0)
+            self.assertEqual(perf_fb["count_control_0"] + perf_fb["total_discounted_customers"], 10000)
 
     def test_29_simulation_metrics_match_allocations(self):
         """Verify summary metrics returned by simulation match actual customer table allocations."""
