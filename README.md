@@ -591,7 +591,8 @@ All required professional submission artifacts are generated from actual verifie
 ### Step 1: Python Environment Setup
 ```powershell
 # Clone or navigate to the repository root
-cd "c:\Users\Vishal Yadav\OneDrive\Desktop\EconoCausal"
+git clone https://github.com/Vishal-7d1/EconoCausal.git
+cd EconoCausal
 
 # Install Python dependencies
 pip install -r 03_Backend_Optimization/requirements.txt

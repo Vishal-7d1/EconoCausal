@@ -8,7 +8,7 @@ from pptx.dml.color import RGBColor
 from pptx.enum.text import PP_ALIGN
 from pptx.enum.shapes import MSO_SHAPE
 
-def create_deck():
+def create_deck(out_path=None):
     prs = Presentation()
     prs.slide_width = Inches(13.333)
     prs.slide_height = Inches(7.5)
@@ -449,20 +449,20 @@ def create_deck():
     set_slide_bg(s14)
     add_header(s14, "Comprehensive Quality Assurance & Automated Testing")
     
-    add_card(s14, Inches(0.8), Inches(1.8), Inches(11.7), Inches(5.0), "39 Automated Tests Across 5 Test Suites — 100% Passed", [
-        "1. 02_Causal_ML/test_dml.py: 4 tests | 100% PASS (55s)",
-        "   - Verifies DML cross-fitting, LightGBM base estimators, CATE estimation bounds, and schema.",
+    add_card(s14, Inches(0.8), Inches(1.8), Inches(11.7), Inches(5.0), "Automated Testing & Governance Scorecard (66 Defined Unit Tests)", [
+        "1. 02_Causal_ML/test_dml.py: 5 Defined Tests (3 Safe Runnable + 2 Permanently Quarantined)",
+        "   - Verifies missing file handling, anti-leakage guards, and artifact immutability. Retraining tests quarantined against benchmark leakage.",
         "",
-        "2. 03_Backend_Optimization/test_optimizer.py: 12 tests | 100% PASS (26s)",
-        "   - Verifies budget caps, anti-leakage guards, zero budget, mutual exclusivity, deterministic MILP vs exhaustive search parity, and solver fallback.",
+        "2. 03_Backend_Optimization/test_optimizer.py: 13 Tests | 100% LIVE PASS (23.8s)",
+        "   - Verifies HiGHS MILP knapsack, greedy fallback, budget monotonicity, mutual exclusivity, and zero-budget edge cases.",
         "",
-        "3. 03_Backend_Optimization/test_validation.py: 5 tests | 100% PASS (5s)",
-        "   - Verifies PSM caliper match rate (>95%), covariate balance (|SMD| < 0.10 for all 9 features), and 4 causal refutation criteria.",
+        "3. 03_Backend_Optimization/test_validation.py: 14 Tests | 100% Historical Pass (Host WDAC Constrained in L8)",
+        "   - Verifies PSM caliper balance (|SMD| < 0.022), 5 refutation stress tests, Rosenbaum bounds (Γ*=1.7, 2.1), and Cinelli-Hazlett RV (12.4%, 17.8%).",
         "",
-        "4. 04_Frontend_Dashboard/backend/test_api.py: 17 tests | 100% PASS (7s)",
-        "   - Verifies all endpoints, schemas, pagination, filters, live simulation, Qini data, and CORS trusted origins.",
+        "4. 04_Frontend_Dashboard/backend/test_api.py: 34 Tests | 33 LIVE PASS, 1 Host WDAC Blocked (65.5s)",
+        "   - Verifies 11 endpoints, pagination, filters, Qini aggregations, simulation caching, CORS, and anti-leakage guards.",
         "",
-        "5. 04_Frontend_Dashboard (npm run build): Production Vite Build | 100% PASS (543ms)"
+        "5. Technical Checks: Dataset CLI (Pass), Vite Build (Pass 2.22s), Frontend Lint (Host WDAC Blocked), Native Print (Not Verified)"
     ], ACCENT_EMERALD)
 
     # -------------------------------------------------------------------------
@@ -511,7 +511,7 @@ def create_deck():
         "Sub-50ms REST microservice.",
         "Interactive simulation workspace.",
         "Continuous customer behavior drift monitoring.",
-        "Validated across 39 automated tests."
+        "Validated across 66 defined unit tests (64 safe runnable; 47 live passed, 17 WDAC-constrained, 2 quarantined)."
     ], ACCENT_CYAN)
 
     # -------------------------------------------------------------------------
@@ -528,7 +528,7 @@ def create_deck():
         "4. Causal Insights: Display Qini curve demonstrating +27.5% outperformance at 50% rollout.",
         "5. Prescriptive Simulator: Change budget from ₹50,000 to ₹75,000 and run live MILP optimization.",
         "6. Recommendations: Search customer 'CUST_000042', inspect CATE elasticity, and explain why discount was assigned.",
-        "7. Validation Audit: Review Love Plot balance, 4 refutation tests, DoWhy DAG, and Drift monitoring."
+        "7. Validation Audit: Review Love Plot balance, 5 refutation stress-tests, DoWhy DAG, and Drift monitoring."
     ])
     
     add_card(s17, Inches(6.8), Inches(1.8), Inches(5.6), Inches(5.0), "Viva Defense & Key Talking Points", [
@@ -536,7 +536,7 @@ def create_deck():
         "A: 'Standard ML recommends discounts to loyal shoppers who would buy anyway. Causal DML isolates the true incremental lift (CATE), targeting only price-sensitive fence-sitters.'",
         "",
         "Q: How do you prove unconfoundedness?",
-        "A: 'We verified covariate balance across all 9 confounders (|SMD| < 0.022) and passed all 4 gold-standard refutations including Placebo tests (p=0.485).'",
+        "A: 'We verified covariate balance across all 9 confounders (|SMD| < 0.022) and passed all 5 gold-standard refutations including Placebo (p=0.485) and Residual Permutation (p=0.002).'",
         "",
         "Q: What is the solver algorithm?",
         "A: 'SciPy HiGHS Mixed-Integer LP solving a Multiple-Choice Knapsack problem under budget caps.'"
@@ -569,12 +569,12 @@ def create_deck():
     p1.space_after = Pt(20)
     
     p2 = tf.add_paragraph()
-    p2.text = "• Successfully bridged advanced Causal AI (EconML, DoWhy) with Prescriptive Operations Research (SciPy HiGHS MILP).\n• Delivered complete full-stack enterprise dashboard, automated test suites (39/39 passing), and verified evaluation benchmarks.\n• All formal deliverables (DOCX Report, PDF Report, PPTX Deck, Excel Evaluation Workbook, Markdown Companions, and Audit Reports) generated and certified.\n\nSincere gratitude to Infotact Solutions, my project mentor, and Ms. Jyotirmayee Behera for guidance throughout this internship."
+    p2.text = "• Successfully bridged advanced Causal AI (EconML, DoWhy) with Prescriptive Operations Research (SciPy HiGHS MILP).\n• Delivered full-stack enterprise dashboard, comprehensive automated test suites (66 defined unit tests; 64 safe runnable; 2 quarantined), and verified benchmark diagnostics.\n• All formal deliverables (DOCX Report, PDF Report, PPTX Deck, Excel Evaluation Workbook, Markdown Companions, and Audit Reports) synchronized and verified.\n\nSincere gratitude to Infotact Solutions, my project mentor, and Ms. Jyotirmayee Behera for guidance throughout this internship."
     p2.font.size = Pt(13)
     p2.font.color.rgb = TEXT_MUTED
     p2.font.name = "Segoe UI"
 
-    out_file = Path("05_Final_Deliverables/EconoCausal_Final_Presentation.pptx")
+    out_file = Path(out_path) if out_path else Path("05_Final_Deliverables/EconoCausal_Final_Presentation.pptx")
     prs.save(out_file)
     print(f"Presentation saved successfully: {out_file} ({out_file.stat().st_size} bytes, 18 slides)")
 

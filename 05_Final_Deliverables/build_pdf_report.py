@@ -50,8 +50,8 @@ class NumberedCanvas(canvas.Canvas):
         self.drawRightString(7.5 * inch, 0.65 * inch, page_str)
         self.restoreState()
 
-def build_pdf():
-    pdf_path = Path("05_Final_Deliverables/EconoCausal_Final_Project_Report.pdf")
+def build_pdf(out_path=None):
+    pdf_path = Path(out_path) if out_path else Path("05_Final_Deliverables/EconoCausal_Final_Project_Report.pdf")
     doc = SimpleDocTemplate(
         str(pdf_path),
         pagesize=letter,
@@ -194,7 +194,7 @@ def build_pdf():
         body_style
     ))
     story.append(Paragraph(
-        "Across a 10,000-customer benchmark cohort, EconoCausal generates <b>₹3,76,115.07 in net incremental profit (7.52x ROAS)</b>, outperforming random promotional rollouts by <b>+75.5% (+₹1,61,765.07)</b> while leaving 5,432 organic buyers at full price. The causal model satisfies all 4 econometric refutation stress-tests (Placebo p=0.485, Confounder drift 0.16%, Subset drift 0.03%) and achieves post-matching covariate balance (|SMD| &lt; 0.022 across all 9 confounders). The complete solution is delivered via an asynchronous FastAPI microservice and an interactive React 19 executive dashboard.",
+        "Across a 10,000-customer benchmark cohort, EconoCausal generates <b>₹3,76,115.07 in net incremental profit (7.52x ROAS)</b>, outperforming random promotional rollouts by <b>+75.5% (+₹1,61,765.07)</b> while leaving 5,432 organic buyers at full price. The causal model satisfies all five reported causal falsification diagnostics (including Placebo p=0.485, Confounder drift 0.16%, Subset drift 0.03%, Positivity drift 0.17%, and the Model-Based Residual Permutation Diagnostic p=0.0020) and achieves post-matching covariate balance (|SMD| &lt; 0.022 across all 9 confounders). The complete solution is delivered via an asynchronous FastAPI microservice and an interactive React 19 executive dashboard.",
         body_style
     ))
 
@@ -275,18 +275,20 @@ def build_pdf():
     story.append(Paragraph("• <b>Random Confounder Injection:</b> 0.16% relative effect drift under standard normal noise (< 5.0% tolerance; PASS).", bullet_style))
     story.append(Paragraph("• <b>Data Subset Stability:</b> 0.03% relative drift across 10 bootstrap 80% sub-samples (< 6.0% tolerance; PASS).", bullet_style))
     story.append(Paragraph("• <b>Positivity Trimming:</b> 0.17% relative drift after trimming extreme tails (< 8.0% tolerance; PASS).", bullet_style))
+    story.append(Paragraph("• <b>Residual Permutation Diagnostic:</b> Permutation uplift +14.22% vs null range [-2.12%, +2.02%] (p = 0.0020; PASS).", bullet_style))
     story.append(Paragraph("• <b>Covariate Balance (PSM):</b> 1:1 Nearest-Neighbor Caliper Matching achieved |SMD| &lt; 0.022 across all 9 confounders (94%+ bias reduction).", bullet_style))
+    story.append(Paragraph("• <b>Quantitative Sensitivity:</b> Rosenbaum bounds Γ* = 1.7 (₹10 arm), 2.1 (₹20 arm); Cinelli-Hazlett RV = 12.4%, 17.8%.", bullet_style))
 
     # -------------------------------------------------------------------------
     # 8. Automated Quality Gate & Test Execution
     # -------------------------------------------------------------------------
     story.append(Paragraph("8. Automated Test Execution & Quality Gate", h1_style))
-    story.append(Paragraph("All 39 automated tests across the codebase execute with 100% pass rate:", body_style))
-    story.append(Paragraph("• 02_Causal_ML/test_dml.py: 4/4 Passed (100%)", bullet_style))
-    story.append(Paragraph("• 03_Backend_Optimization/test_optimizer.py: 12/12 Passed (100% including deterministic MILP vs exhaustive search)", bullet_style))
-    story.append(Paragraph("• 03_Backend_Optimization/test_validation.py: 5/5 Passed (100%)", bullet_style))
-    story.append(Paragraph("• 04_Frontend_Dashboard/backend/test_api.py: 17/17 Passed (100% including Qini and CORS trusted origins)", bullet_style))
-    story.append(Paragraph("• 04_Frontend_Dashboard (npm run build): Production Vite Build Passed cleanly (543ms)", bullet_style))
+    story.append(Paragraph("The codebase defines 66 distinct automated unit tests (64 safe runnable, with 2 permanently quarantined against benchmark data leakage):", body_style))
+    story.append(Paragraph("• 02_Causal_ML/test_dml.py: 5 tests (test_05 passed live; test_01, test_02 WDAC-constrained; test_03, test_04 quarantined)", bullet_style))
+    story.append(Paragraph("• 03_Backend_Optimization/test_optimizer.py: 13/13 LIVE PASS (23.8s, 100%)", bullet_style))
+    story.append(Paragraph("• 03_Backend_Optimization/test_validation.py: 14 Tests (Historical 100% Pass; Host WDAC Constrained in L8)", bullet_style))
+    story.append(Paragraph("• 04_Frontend_Dashboard/backend/test_api.py: 34 Tests (33 LIVE PASS; test_19 WDAC-constrained)", bullet_style))
+    story.append(Paragraph("• Technical Checks: Dataset CLI (Pass), Vite Build (Pass 2.22s), Linter (WDAC Blocked), Native Print (Not Verified)", bullet_style))
 
     # -------------------------------------------------------------------------
     # 9. Conclusion & Recommendations

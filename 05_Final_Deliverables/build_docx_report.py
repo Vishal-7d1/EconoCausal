@@ -29,7 +29,7 @@ def set_cell_margins(cell, top=100, bottom=100, left=150, right=150):
         tcMar.append(node)
     tcPr.append(tcMar)
 
-def create_report():
+def create_report(out_path=None):
     doc = Document()
     
     # Page setup - 1 inch margins
@@ -192,7 +192,7 @@ def create_report():
     add_h1("2. Abstract")
     add_body("Promotional discounting represents one of the largest capital outlays in modern retail and e-commerce, yet traditional predictive machine learning models systematically misallocate promotional spend. Supervised learning algorithms predict customer conversion probabilities conditional on treatment, mistaking correlation for causation: loyal, high-intent shoppers receive the steepest discounts simply because they purchase frequently, creating massive deadweight loss (subsidizing purchases that would have occurred at full price).")
     add_body("EconoCausal solves this fundamental econometrics challenge by coupling Double Machine Learning (DML) with an exact Mixed-Integer Linear Programming (MILP) budget solver. Using EconML LinearDML with 5-fold cross-fitting and LightGBM nuisance models, the system isolates true Individual Treatment Effects (CATE / tau_hat_i) across multiple promotional discount tiers (₹0, ₹10, ₹20). These price elasticities feed into a SciPy HiGHS optimization engine that prescriptively allocates discount offers to maximize total incremental profit under a strict ₹50,000 marketing budget cap.")
-    add_body("Across a 10,000-customer benchmark cohort, EconoCausal generates ₹3,76,115.07 in net incremental profit (7.52x ROAS), outperforming random promotional rollouts by +75.5% (+₹1,61,765.07) while leaving 5,432 organic buyers at full price. The causal model satisfies all 4 econometric refutation stress-tests (Placebo p=0.485, Confounder drift 0.16%, Subset drift 0.03%) and achieves post-matching covariate balance (|SMD| < 0.022 across all 9 confounders). The complete solution is delivered via an asynchronous FastAPI microservice and an interactive React 19 executive dashboard.")
+    add_body("Across a 10,000-customer benchmark cohort, EconoCausal generates ₹3,76,115.07 in net incremental profit (7.52x ROAS), outperforming random promotional rollouts by +75.5% (+₹1,61,765.07) while leaving 5,432 organic buyers at full price. The causal model satisfies all five reported causal falsification diagnostics (including Placebo p=0.485, Confounder drift 0.16%, Subset drift 0.03%, Positivity drift 0.17%, and the Model-Based Residual Permutation Diagnostic p=0.0020) and achieves post-matching covariate balance (|SMD| < 0.022 across all 9 confounders). The complete solution is delivered via an asynchronous FastAPI microservice and an interactive React 19 executive dashboard.")
 
     # -------------------------------------------------------------------------
     # 3. Problem Statement & Business Motivation
@@ -301,6 +301,7 @@ def create_report():
         ["Random Confounder Injection", "Adds standard normal noise", "0.16% relative effect drift (< 5.0%)", "PASS"],
         ["Data Subset Stability", "10x 80% bootstrap subsampling", "0.03% relative effect drift (< 6.0%)", "PASS"],
         ["Positivity Trimming", "Trims extreme tails (0.05-0.95)", "0.17% relative effect drift (< 8.0%)", "PASS"],
+        ["Residual Permutation Diagnostic", "Permutes DML residuals (500 draws)", "Observed uplift +14.22% vs null [-2.12%, +2.02%] (p = 0.002)", "PASS"],
         ["Covariate Balance (PSM)", "1:1 Caliper Matching (95.9% matched)", "|SMD| < 0.022 across all 9 confounders", "PASS"],
     ]
     add_table_data(["Validation Test", "Protocol", "Verified Statistical Result", "Status"], val_table, col_widths=[1.8, 1.8, 2.2, 0.7])
@@ -351,14 +352,15 @@ def create_report():
     # 19. Appendix with Test Commands & Verification
     # -------------------------------------------------------------------------
     add_h1("19. Appendix: Test Commands & Verification Suite")
-    add_body("All 39 automated tests across the repository pass with zero errors:")
-    add_bullet("python -m unittest discover -s 02_Causal_ML -p 'test_*.py'  -->  4/4 Passed (100%)")
-    add_bullet("python 03_Backend_Optimization/test_optimizer.py  -->  12/12 Passed (100%)")
-    add_bullet("python 03_Backend_Optimization/test_validation.py  -->  5/5 Passed (100%)")
-    add_bullet("python -m unittest 04_Frontend_Dashboard/backend/test_api.py  -->  17/17 Passed (100%)")
-    add_bullet("cd 04_Frontend_Dashboard && npm run build  -->  Vite Production Build Passed (543ms)")
+    add_body("The repository defines 66 distinct automated unit test cases, of which 64 are safe runnable regression tests (with 2 tests permanently quarantined against benchmark data leakage):")
+    add_bullet("python -m unittest 02_Causal_ML.test_dml.TestDoubleMachineLearning.test_01_missing_file_handling 02_Causal_ML.test_dml.TestDoubleMachineLearning.test_02_anti_leakage_safeguard 02_Causal_ML.test_dml.TestDoubleMachineLearning.test_05_production_artifacts_unmodified  -->  3 Safe Tests (test_05 passed live; test_01, test_02 WDAC-constrained; test_03, test_04 quarantined)")
+    add_bullet("python -m unittest 03_Backend_Optimization/test_optimizer.py  -->  13/13 LIVE PASS (23.8s)")
+    add_bullet("python -B -m unittest 03_Backend_Optimization/test_validation.py  -->  14 Tests (Historical Pass; Host WDAC Constrained in L8)")
+    add_bullet("python -m unittest 04_Frontend_Dashboard/backend/test_api.py  -->  34 Tests (33 LIVE PASS; test_19 WDAC-constrained)")
+    add_bullet("python 01_Dataset_Analysis/inspect_dataset.py --path 01_Dataset_Analysis/cleaned_pricing_data.csv  -->  LIVE PASS (10,000 rows, 16 cols)")
+    add_bullet("cd 04_Frontend_Dashboard && npm run build  -->  Vite Production Build LIVE PASS (2.22s, 0 errors)")
 
-    out_file = Path("05_Final_Deliverables/EconoCausal_Final_Project_Report.docx")
+    out_file = Path(out_path) if out_path else Path("05_Final_Deliverables/EconoCausal_Final_Project_Report.docx")
     doc.save(out_file)
     print(f"DOCX Report created successfully: {out_file} ({out_file.stat().st_size} bytes)")
 
