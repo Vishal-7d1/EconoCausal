@@ -938,15 +938,6 @@ def get_chart_data() -> Dict[str, Any]:
             "rods": float(summary.get("optimal_policy", {}).get("return_on_discount_spend", 7.52)),
         }
     }
-        "cohort_actuals": {
-            "total_records": len(df),
-            "total_targeted": int((df["recommended_discount_inr"] > 0).sum()),
-            "total_control": int((df["recommended_discount_inr"] == 0).sum()),
-            "targeted_pct": round(float((df["recommended_discount_inr"] > 0).sum() / len(df) * 100), 2),
-            "incremental_profit_inr": float(summary.get("optimal_policy", {}).get("estimated_incremental_profit_inr", 376115.07)),
-            "rods": float(summary.get("optimal_policy", {}).get("return_on_discount_spend", 7.52)),
-        }
-    }
 
     return {
         "discount_distribution": discount_distribution,

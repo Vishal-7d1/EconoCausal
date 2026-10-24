@@ -51,6 +51,10 @@ export default function TopNavbar({
   onOpenMethodology,
   onOpenReport,
   onNavigate,
+  activeDatasetMeta,
+  onUploadDataset,
+  onResetDataset,
+  isUploadingDataset,
 }) {
   const [dateMenuOpen, setDateMenuOpen] = useState(false);
   const [filterMenuOpen, setFilterMenuOpen] = useState(false);
@@ -118,16 +122,27 @@ export default function TopNavbar({
 
   const isDarkMode = theme === 'dark';
 
+  const totalRecords = activeDatasetMeta?.total_records ?? 10000;
+  const isCustom = Boolean(activeDatasetMeta?.is_custom);
+  const activeFileName = activeDatasetMeta?.filename ?? 'optimal_discount_allocations.csv';
+
   const dateRangeOptions = [
-    { label: 'Active Evaluation Benchmark (N=10,000)', desc: 'Full DML Evaluated Customer Cohort' },
-    { label: 'Optimal Policy Allocations (N=4,568)', desc: 'Selected for ₹10 / ₹20 Promotional Discounts' },
-    { label: 'Organic Control Baseline (N=5,432)', desc: '₹0 Discount Non-Treated Customer Cohort' },
-    { label: 'High Price Elasticity Cohort (N=3,240)', desc: 'Low-Income Tier with CATE τ̂ ≥ 0.20' },
-    { label: 'Inelastic Organic Shoppers (N=2,350)', desc: 'High-Income Tier (Deadweight Loss Protection)' },
+    {
+      label: isCustom
+        ? `Active Custom Dataset: ${activeFileName} (N=${totalRecords.toLocaleString()})`
+        : `Active Evaluation Benchmark (N=${totalRecords.toLocaleString()})`,
+      desc: isCustom
+        ? 'Synchronized custom customer dataset with live DML causal estimates'
+        : 'Full DML Evaluated Customer Cohort'
+    },
+    { label: `Optimal Policy Allocations (${isCustom ? 'Active Policy' : 'N=4,568'})`, desc: 'Selected for ₹10 / ₹20 Promotional Discounts' },
+    { label: `Organic Control Baseline (${isCustom ? 'Organic Holdout' : 'N=5,432'})`, desc: '₹0 Discount Non-Treated Customer Cohort' },
+    { label: 'High Price Elasticity Cohort', desc: 'Low-Income Tier with CATE τ̂ ≥ 0.20' },
+    { label: 'Inelastic Organic Shoppers', desc: 'High-Income Tier (Deadweight Loss Protection)' },
   ];
 
   const categoryOptions = [
-    { id: 'all', label: 'All Customer Segments (N=10,000)' },
+    { id: 'all', label: `All Customer Segments (N=${totalRecords.toLocaleString()})` },
     { id: 'Low Income', label: 'Low Income (< ₹35k) — High Elasticity' },
     { id: 'Medium Income', label: 'Medium Income (₹35k-₹65k) — Moderate' },
     { id: 'High Income', label: 'High Income (> ₹65k) — Inelastic' },
@@ -319,6 +334,33 @@ export default function TopNavbar({
             </div>
           )}
         </div>
+
+        {/* Direct CSV Upload Button in Header */}
+        {onUploadDataset && (
+          <label
+            className="top-navbar-pill"
+            style={{
+              cursor: isUploadingDataset ? 'wait' : 'pointer',
+              opacity: isUploadingDataset ? 0.7 : 1,
+              pointerEvents: isUploadingDataset ? 'none' : 'auto',
+              background: 'rgba(217, 37, 61, 0.08)',
+              color: '#D9253D',
+              borderColor: 'rgba(217, 37, 61, 0.25)',
+              fontWeight: 600,
+            }}
+            title="Upload any customer pricing CSV (.csv) to immediately synchronize across all dashboard views"
+          >
+            <span aria-hidden="true">{isUploadingDataset ? '⏳' : '↑'}</span>
+            <span>{isUploadingDataset ? 'Optimizing...' : 'Upload CSV'}</span>
+            <input
+              type="file"
+              accept=".csv,text/csv"
+              onChange={onUploadDataset}
+              disabled={isUploadingDataset}
+              style={{ display: 'none' }}
+            />
+          </label>
+        )}
 
         {/* Help & Methodology Icon */}
         <button

@@ -554,6 +554,9 @@ export default function App() {
       const valJson = valRes.ok ? await valRes.json() : null;
 
       setSummaryData(sumJson);
+      if (sumJson?.active_dataset) {
+        setActiveDatasetMeta(sumJson.active_dataset);
+      }
 
       setChartData(chartJson);
 
@@ -809,16 +812,14 @@ export default function App() {
         return;
       }
 
-      setPricingDataset(dataset);
-      setDatasetSearch('');
-      setDatasetColumnFilter('');
-      setDatasetColumnSearch('');
-      setDatasetPage(1);
+      // Check for ground-truth true_* columns to safely pass strip_ground_truth=true
+      const hasTrueCols = parsed.headers.some((h) => String(h).toLowerCase().startsWith('true_'));
+      const uploadUrl = hasTrueCols ? '/api/dataset/upload?strip_ground_truth=true' : '/api/dataset/upload';
 
       // 2. Synchronize pricing dataset to FastAPI backend to power all modules (Overview, Simulator, Recommendations, Charts)
       const formData = new FormData();
       formData.append('file', file);
-      const res = await fetch('/api/dataset/upload', {
+      const res = await fetch(uploadUrl, {
         method: 'POST',
         body: formData,
       });
@@ -827,6 +828,14 @@ export default function App() {
       if (!res.ok) {
         throw new Error(resData.detail || 'Backend failed to process and optimize the uploaded CSV.');
       }
+
+      setPricingDataset(dataset);
+      setDatasetSearch('');
+      setDatasetColumnFilter('');
+      setDatasetColumnSearch('');
+      setDatasetPage(1);
+      setActiveSimulationId(null);
+      setPagination((prev) => ({ ...prev, page: 1 }));
 
       setDatasetUploadSuccess(
         resData.message || `Successfully loaded & synchronized '${file.name}' (${resData.active_dataset?.total_records?.toLocaleString() || '10,000'} customers) across all dashboard views!`
@@ -858,8 +867,12 @@ export default function App() {
         const errJson = await res.json().catch(() => ({}));
         throw new Error(errJson.detail || 'Failed to reset dataset on backend.');
       }
-      const resData = await res.json();
-      setActiveDatasetMeta(resData.active_dataset);
+      const resData = await res.json().catch(() => ({}));
+      if (resData?.active_dataset) {
+        setActiveDatasetMeta(resData.active_dataset);
+      }
+      setActiveSimulationId(null);
+      setPagination((prev) => ({ ...prev, page: 1 }));
       setDatasetUploadSuccess('Successfully reset to default 10,000 customer benchmark dataset.');
       setPricingDataset(null);
       await Promise.all([
@@ -1606,6 +1619,10 @@ export default function App() {
           onSelectCategoryFilter={setTopNavCategory}
           onOpenMethodology={() => setShowMethodologyModal(true)}
           onOpenReport={handleOpenReportModal}
+          activeDatasetMeta={activeDatasetMeta}
+          onUploadDataset={handleDatasetUpload}
+          onResetDataset={handleResetDataset}
+          isUploadingDataset={isUploadingDataset}
           onNavigate={(tab) => {
             setActiveTab(tab);
             window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -1625,6 +1642,16 @@ export default function App() {
               activeViewMode={topNavViewMode}
               categoryFilter={topNavCategory}
               selectedRange={topNavRange}
+              activeDatasetMeta={activeDatasetMeta}
+              onUploadDataset={handleDatasetUpload}
+              onResetDataset={handleResetDataset}
+              isUploadingDataset={isUploadingDataset}
+              uploadSuccessMessage={datasetUploadSuccess}
+              uploadErrorMessage={datasetLoadError}
+              onClearUploadMessage={() => {
+                setDatasetUploadSuccess('');
+                setDatasetLoadError('');
+              }}
               onOpenMethodology={() => setShowMethodologyModal(true)}
               onOpenReport={handleOpenReportModal}
               onNavigate={(tab) => {
