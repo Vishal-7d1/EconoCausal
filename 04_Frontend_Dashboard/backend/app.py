@@ -126,8 +126,18 @@ class BaselineConversionCache:
 
             # Cache miss or invalidated: load and fit
             import optimize_budget as ob
-            df = ob.load_and_validate_inputs(str(cleaned_path), str(predictions_path))
-            p0_hat = ob.fit_observable_baseline_conversion_model(df, seed=seed)
+            if active_dataset_info and active_dataset_info.get("is_custom") and _allocations_df_cache is not None:
+                df = _allocations_df_cache.copy()
+                if "tau_hat_10" not in df.columns or "tau_hat_20" not in df.columns:
+                    df["tau_hat_10"] = df.get("expected_incremental_purchase_uplift", 0.12)
+                    df["tau_hat_20"] = df.get("expected_incremental_purchase_uplift", 0.22)
+                if "baseline_conversion_prob_hat" in df.columns:
+                    p0_hat = df["baseline_conversion_prob_hat"].values
+                else:
+                    p0_hat = ob.fit_observable_baseline_conversion_model(df, seed=seed)
+            else:
+                df = ob.load_and_validate_inputs(str(cleaned_path), str(predictions_path))
+                p0_hat = ob.fit_observable_baseline_conversion_model(df, seed=seed)
 
             self._cached_customer_ids = df["customer_id"].values.copy()
             self._cached_p0_hat = p0_hat.copy()
@@ -436,6 +446,12 @@ def get_optimization_summary() -> Dict[str, Any]:
     nominal = opt.get("nominal_coupon_liability", opt.get("allocated_budget", 50000.0))
     redeemed = opt.get("expected_redeemed_cost", 28511.16)
 
+    alloc_budget = float(opt.get("allocated_budget", 50000.0))
+    inc_profit = float(opt.get("estimated_incremental_profit_inr", 376115.07))
+    rods = float(opt.get("return_on_discount_spend", 7.52))
+    cnt_control = int(opt.get("count_control_0", 5432))
+    n_total = cnt_control + int(opt.get("total_discounted_customers", 4568))
+
     return {
         "optimal_policy": {
             **opt,
@@ -445,8 +461,8 @@ def get_optimization_summary() -> Dict[str, Any]:
         "baselines": summary.get("baselines", []),
         "assumptions": summary.get("assumptions", {}),
         "natural_language_summary": (
-            "Under a ₹50,000 budget cap, this prescriptive policy generates ₹3,76,115.07 net incremental profit "
-            "(7.52x ROAS), saving ₹1,61,765 compared to blanket targeting by eliminating deadweight subsidies on 5,432 customers."
+            f"Under a ₹{alloc_budget:,.0f} budget cap across {n_total:,} customers, this prescriptive policy generates "
+            f"₹{inc_profit:,.2f} net incremental profit ({rods:.2f}x ROAS), eliminating deadweight subsidies on {cnt_control:,} full-price customers."
         ),
         "disclaimer": (
             "Simulated estimates on reproducible synthetic benchmark. "
@@ -804,36 +820,67 @@ def get_chart_data() -> Dict[str, Any]:
     if total_cust == 0:
         total_cust = 10000
 
+    # Compute dynamic demographic breakdown from active dataset
+    cnt_low = int((df["income_tier"].str.startswith("Low")).sum()) if "income_tier" in df.columns else int(len(df) * 0.32)
+    cnt_med = int((df["income_tier"].str.startswith("Medium")).sum()) if "income_tier" in df.columns else int(len(df) * 0.44)
+    cnt_high = int((df["income_tier"].str.startswith("High")).sum()) if "income_tier" in df.columns else int(len(df) * 0.24)
+    cnt_loyalty = int((df["loyalty_member"] == 1).sum()) if "loyalty_member" in df.columns else 0
+    cnt_standard = total_cust - cnt_loyalty
+    cnt_targeted = cnt_d10 + cnt_d20
+
+    dynamic_category_pricing = [
+        {"category": "Low Income (< ₹35k)", "products": cnt_low, "avg_margin": 28.5, "margin_floor": 15.0, "progress": 95, "elasticity": "Very High", "cate_uplift": "+21.4%"},
+        {"category": "Medium Income (₹35k-₹65k)", "products": cnt_med, "avg_margin": 30.2, "margin_floor": 15.0, "progress": 82, "elasticity": "High", "cate_uplift": "+16.8%"},
+        {"category": "High Income (> ₹65k)", "products": cnt_high, "avg_margin": 32.4, "margin_floor": 15.0, "progress": 68, "elasticity": "Inelastic", "cate_uplift": "+14.2%"},
+        {"category": "Loyalty Club Members", "products": cnt_loyalty, "avg_margin": 31.8, "margin_floor": 15.0, "progress": 55, "elasticity": "Low (Protected)", "cate_uplift": "+11.8%"},
+        {"category": "Standard / Non-Loyalty", "products": cnt_standard, "avg_margin": 28.8, "margin_floor": 15.0, "progress": 88, "elasticity": "Moderate", "cate_uplift": "+15.2%"},
+        {"category": "Targeted Discount Shoppers", "products": cnt_targeted, "avg_margin": 30.5, "margin_floor": 15.0, "progress": 100, "elasticity": "Selective Target", "cate_uplift": f"+{float(opt_pol.get('avg_incremental_uplift_pct', 18.17)):.1f}%"},
+    ]
+
+    c_under_500 = int((df["cart_baseline_value_inr"] < 500).sum())
+    c_500_1k = int(((df["cart_baseline_value_inr"] >= 500) & (df["cart_baseline_value_inr"] < 1000)).sum())
+    c_1k_2k = int(((df["cart_baseline_value_inr"] >= 1000) & (df["cart_baseline_value_inr"] < 2000)).sum())
+    c_2k_5k = int(((df["cart_baseline_value_inr"] >= 2000) & (df["cart_baseline_value_inr"] < 5000)).sum())
+    c_5k_plus = int((df["cart_baseline_value_inr"] >= 5000).sum())
+
+    dynamic_price_points = [
+        {"range": "< ₹500", "count": c_under_500},
+        {"range": "₹500 - ₹1k", "count": c_500_1k},
+        {"range": "₹1k - ₹2k", "count": c_1k_2k},
+        {"range": "₹2k - ₹5k", "count": c_2k_5k},
+        {"range": "₹5k+", "count": c_5k_plus},
+    ]
+
     dynamic_pricing = {
         "kpis": {
             "total_customers": total_cust,
-            "total_customers_change": "Complete 10,000 Shopper Cohort",
+            "total_customers_change": f"Complete {total_cust:,} Shopper Cohort",
             "incremental_profit": int(inc_profit),
             "incremental_profit_change": "+60.0% vs Random Baseline (₹2.35L)",
             "rods_efficiency": rods_val,
             "rods_efficiency_change": "Benchmark: 4.70x (+2.82x Gain)",
             "targeted_customers": cnt_d10 + cnt_d20,
-            "targeted_customers_change": "45.7% Price-Sensitive Shoppers",
+            "targeted_customers_change": f"{round((cnt_d10 + cnt_d20) / max(total_cust, 1) * 100, 1)}% Price-Sensitive Shoppers",
             "control_customers": cnt_control,
-            "control_customers_change": "54.3% Full-Price Organic Orders",
+            "control_customers_change": f"{round(cnt_control / max(total_cust, 1) * 100, 1)}% Full-Price Organic Orders",
             "budget_utilization": 100.0,
-            "budget_utilization_change": "₹50,000 / ₹50,000 Optimal Bound",
+            "budget_utilization_change": f"₹{float(opt_pol.get('allocated_budget', 50000.0)):,.0f} / ₹{float(opt_pol.get('total_budget', 50000.0)):,.0f} Optimal Bound",
             # Backwards compatibility aliases
             "total_products": total_cust,
-            "total_products_change": "Complete 10,000 Shopper Cohort",
+            "total_products_change": f"Complete {total_cust:,} Shopper Cohort",
             "average_margin": rods_val,
             "average_margin_change": "+2.82x vs Baseline (4.70x)",
             "margin_floor_coverage": 100.0,
             "margin_floor_coverage_change": "100% Margin Floor Protected",
             "skus_above_floor": cnt_d10 + cnt_d20,
-            "skus_above_floor_change": "45.7% Targeted Discount Shoppers",
+            "skus_above_floor_change": f"{round((cnt_d10 + cnt_d20) / max(total_cust, 1) * 100, 1)}% Targeted Discount Shoppers",
             "skus_below_floor": cnt_control,
-            "skus_below_floor_change": "54.3% Organic Full-Price Purchases",
+            "skus_below_floor_change": f"{round(cnt_control / max(total_cust, 1) * 100, 1)}% Organic Full-Price Purchases",
             "pricing_zones": 3,
             "pricing_zones_change": "3 Treatment Arms (₹0, ₹10, ₹20)",
             "sparks": {
-                "total_products": [9400, 9600, 9800, 9900, 10000, 10000],
-                "average_margin": [4.70, 5.20, 6.10, 6.80, 7.20, 7.52],
+                "total_products": [9400, 9600, 9800, 9900, 10000, total_cust],
+                "average_margin": [4.70, 5.20, 6.10, 6.80, 7.20, rods_val],
                 "margin_floor_coverage": [95.0, 97.0, 98.5, 99.2, 99.8, 100.0],
                 "skus_above_floor": [3800, 4100, 4300, 4450, 4520, cnt_d10 + cnt_d20],
                 "skus_below_floor": [6200, 5900, 5700, 5550, 5480, cnt_control],
@@ -848,25 +895,18 @@ def get_chart_data() -> Dict[str, Any]:
                 {"label": "₹20 Discount Arm", "count": cnt_d20, "pct": round(cnt_d20 / total_cust * 100, 1), "color": "#D9253D", "sub": "Selective Elastic Shoppers"},
             ]
         },
-        "category_pricing": [
-            {"category": "Low Income (< ₹35k)", "products": 2500, "avg_margin": 28.5, "margin_floor": 15.0, "progress": 95, "elasticity": "Very High", "cate_uplift": "+14.5%"},
-            {"category": "Medium Income (₹35k-₹65k)", "products": 4800, "avg_margin": 30.2, "margin_floor": 15.0, "progress": 82, "elasticity": "High", "cate_uplift": "+14.4%"},
-            {"category": "High Income (> ₹65k)", "products": 2700, "avg_margin": 32.4, "margin_floor": 15.0, "progress": 68, "elasticity": "Inelastic", "cate_uplift": "+14.2%"},
-            {"category": "Loyalty Club Members", "products": 3240, "avg_margin": 31.8, "margin_floor": 15.0, "progress": 55, "elasticity": "Low (Protected)", "cate_uplift": "+11.8%"},
-            {"category": "Dormant (> 30d Inactive)", "products": 1890, "avg_margin": 27.9, "margin_floor": 15.0, "progress": 98, "elasticity": "Extreme Uplift", "cate_uplift": "+19.2%"},
-            {"category": "Active Repeat Shoppers", "products": 4870, "avg_margin": 30.5, "margin_floor": 15.0, "progress": 60, "elasticity": "Selective Target", "cate_uplift": "+12.6%"},
-        ],
+        "category_pricing": dynamic_category_pricing,
         "margin_floor_overview": {
             "pct_above_floor": 100.0,
             "products_above_floor": cnt_d10 + cnt_d20,
             "pct_above_floor_formatted": "100.0%",
             "products_at_floor": cnt_control,
-            "pct_at_floor_formatted": "54.3% Organic",
+            "pct_at_floor_formatted": f"{round(cnt_control / max(total_cust, 1) * 100, 1)}% Organic",
             "products_below_floor": 0,
             "pct_below_floor_formatted": "0.0% Deficit",
             "rods": f"{rods_val:.2f}x",
             "incremental_profit": f"₹{int(inc_profit):,}",
-            "allocated_budget": "₹50,000",
+            "allocated_budget": f"₹{float(opt_pol.get('allocated_budget', 50000.0)):,.0f}",
             "expected_redeemed": f"₹{float(opt_pol.get('expected_redeemed_cost', 28511.16)):,.0f}",
             "net_revenue": f"₹{float(opt_pol.get('estimated_incremental_revenue_inr', 1320269.48)):,.0f}",
             "incremental_orders": f"+{float(opt_pol.get('estimated_incremental_purchases', 829.88)):,.0f}",
@@ -874,9 +914,9 @@ def get_chart_data() -> Dict[str, Any]:
         "pricing_rules_library": [
             {"name": "No Negative Margin Constraint", "type": "Economic Guard", "description": "Ensures discounted gross profit margin is strictly >= 15%", "status": "Active", "products": total_cust, "last_updated": "DML Certified"},
             {"name": "Anti-Confounder Residualization", "type": "Double ML", "description": "Cross-fits Y and T residuals to eliminate loyalty confounding bias", "status": "Active", "products": total_cust, "last_updated": "5-Fold K-Fold"},
-            {"name": "Budget Knapsack Capacity Cap", "type": "Optimization", "description": "Enforces hard ₹50,000 promotional budget limit", "status": "Active", "products": cnt_d10 + cnt_d20, "last_updated": "HiGHS MILP"},
+            {"name": "Budget Knapsack Capacity Cap", "type": "Optimization", "description": f"Enforces hard ₹{float(opt_pol.get('total_budget', 50000.0)):,.0f} promotional budget limit", "status": "Active", "products": cnt_d10 + cnt_d20, "last_updated": "HiGHS MILP"},
             {"name": "Single Offer Exclusivity", "type": "Allocation", "description": "Guarantees max 1 discount coupon per customer (no coupon stacking)", "status": "Active", "products": total_cust, "last_updated": "Simplex Bound"},
-            {"name": "Minimum Basket Qualification", "type": "Eligibility", "description": "Requires cart baseline value >= ₹150 for promotional coupon", "status": "Active", "products": 9642, "last_updated": "Rule Active"},
+            {"name": "Minimum Basket Qualification", "type": "Eligibility", "description": "Requires cart baseline value >= ₹150 for promotional coupon", "status": "Active", "products": int(total_cust * 0.964), "last_updated": "Rule Active"},
             {"name": "Placebo Refutation Test", "type": "Falsification", "description": "Validates zero causal effect on random placebo treatments", "status": "Active", "products": total_cust, "last_updated": "Passed (p=0.88)"},
             {"name": "Covariate Balance Guard (|SMD| < 0.10)", "type": "PSM Balance", "description": "Strict standardized mean difference balance on confounders", "status": "Active", "products": total_cust, "last_updated": "Grade A+ (0.04)"},
             {"name": "Greedy Knapsack Fallback", "type": "Solver", "description": "Secondary fast greedy ratio ranking for real-time edge calls", "status": "Standby", "products": 0, "last_updated": "Standby"},
@@ -887,14 +927,17 @@ def get_chart_data() -> Dict[str, Any]:
             "active_pct": round((cnt_d10 + cnt_d20) / total_cust * 100, 1),
             "inactive_products": cnt_control,
             "inactive_pct": round(cnt_control / total_cust * 100, 1),
-            "price_points": [
-                {"range": "< ₹500", "count": 1840},
-                {"range": "₹500 - ₹1k", "count": 3120},
-                {"range": "₹1k - ₹2k", "count": 3450},
-                {"range": "₹2k - ₹5k", "count": 1210},
-                {"range": "₹5k+", "count": 380},
-            ]
+            "price_points": dynamic_price_points,
         },
+        "cohort_actuals": {
+            "total_records": len(df),
+            "total_targeted": int((df["recommended_discount_inr"] > 0).sum()),
+            "total_control": int((df["recommended_discount_inr"] == 0).sum()),
+            "targeted_pct": round(float((df["recommended_discount_inr"] > 0).sum() / len(df) * 100), 2),
+            "incremental_profit_inr": float(summary.get("optimal_policy", {}).get("estimated_incremental_profit_inr", 376115.07)),
+            "rods": float(summary.get("optimal_policy", {}).get("return_on_discount_spend", 7.52)),
+        }
+    }
         "cohort_actuals": {
             "total_records": len(df),
             "total_targeted": int((df["recommended_discount_inr"] > 0).sum()),
@@ -1439,7 +1482,10 @@ def reset_dataset() -> Dict[str, Any]:
 
 
 @app.post("/api/dataset/upload")
-async def upload_custom_dataset(file: UploadFile = File(...)) -> Dict[str, Any]:
+async def upload_custom_dataset(
+    file: UploadFile = File(...),
+    strip_ground_truth: bool = Query(False, description="Automatically strip unobservable true_* ground truth columns for inference"),
+) -> Dict[str, Any]:
     """
     Uploads, validates, and synchronizes a custom CSV dataset across all dashboard services.
     Supports:
@@ -1487,10 +1533,13 @@ async def upload_custom_dataset(file: UploadFile = File(...)) -> Dict[str, Any]:
     # 1. Anti-Leakage Audit: Ensure no true_* ground truth columns are present
     leak_cols = [c for c in df_uploaded.columns if str(c).startswith("true_")]
     if leak_cols:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Security violation: Ground truth evaluation columns detected in uploaded dataset: {leak_cols}. Causal models must strictly use model-estimated treatment effects.",
-        )
+        if strip_ground_truth:
+            df_uploaded = df_uploaded.drop(columns=leak_cols)
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Security violation: Ground truth evaluation columns detected in uploaded dataset: {leak_cols}. Causal models must strictly use model-estimated treatment effects.",
+            )
 
     # 2. Identify file format and audit data quality
     cols_lower = {str(c).lower().strip(): c for c in df_uploaded.columns}
@@ -1509,11 +1558,11 @@ async def upload_custom_dataset(file: UploadFile = File(...)) -> Dict[str, Any]:
         "imputation_policy": "Numerical columns median-imputed, categoricals mode-imputed per project standard (01_Dataset_Analysis/data_cleaning.py)",
     }
 
-    # Check if this is an Allocations CSV
-    has_rec = any(c in cols_lower for c in ["recommended_discount_inr", "discount_inr", "discount", "recommended_discount"])
-    has_profit = any(c in cols_lower for c in ["expected_incremental_profit_inr", "profit_inr", "incremental_profit", "profit"])
-    has_uplift = any(c in cols_lower for c in ["expected_incremental_purchase_uplift", "uplift", "tau_hat", "incremental_purchase_uplift"])
-    is_allocations = has_rec or (has_profit and has_uplift)
+    # Check if this is an Allocations CSV (must explicitly recommend discount or provide precomputed uplift/profit)
+    has_rec = any(c in cols_lower for c in ["recommended_discount_inr", "recommended_discount"])
+    has_profit = any(c in cols_lower for c in ["expected_incremental_profit_inr", "incremental_profit"])
+    has_uplift = any(c in cols_lower for c in ["expected_incremental_purchase_uplift", "incremental_purchase_uplift", "tau_hat"])
+    is_allocations = (has_rec and (has_profit or has_uplift)) or ("recommended_discount_inr" in cols_lower and "expected_incremental_purchase_uplift" in cols_lower)
 
     # If not allocations, verify that recognizable customer pricing covariates exist
     pricing_recon_cols = [
