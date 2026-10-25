@@ -1149,7 +1149,7 @@ def get_validation() -> Dict[str, Any]:
 
 
 @app.get("/api/dataset/sample")
-def get_sample_dataset(limit: int = Query(10000, ge=10, le=10000, description="Number of sample rows to return")) -> Dict[str, Any]:
+def get_sample_dataset(limit: int = Query(10000, ge=1, le=10000, description="Number of sample rows to return")) -> Dict[str, Any]:
     """
     Safely provides observable pricing benchmark dataset records for UI explorer without file upload.
     Anti-leakage enforced: true_* columns are strictly blocked.
