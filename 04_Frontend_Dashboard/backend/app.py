@@ -1549,82 +1549,58 @@ async def upload_custom_dataset(
         "imputation_policy": "Numerical columns median-imputed, categoricals mode-imputed per project standard (01_Dataset_Analysis/data_cleaning.py)",
     }
 
-    # Check if this is an Allocations CSV (must explicitly recommend discount or provide precomputed uplift/profit)
+    # Check if this is an Allocations CSV (must explicitly recommend discount and provide precomputed uplift or profit)
     has_rec = any(c in cols_lower for c in ["recommended_discount_inr", "recommended_discount"])
     has_profit = any(c in cols_lower for c in ["expected_incremental_profit_inr", "incremental_profit"])
     has_uplift = any(c in cols_lower for c in ["expected_incremental_purchase_uplift", "incremental_purchase_uplift", "tau_hat"])
-    is_allocations = (has_rec and (has_profit or has_uplift)) or ("recommended_discount_inr" in cols_lower and "expected_incremental_purchase_uplift" in cols_lower)
-
-    # If not allocations, verify that recognizable customer pricing covariates exist
-    pricing_recon_cols = [
-        "cart_baseline_value_inr", "cart_value", "cart_baseline_value",
-        "monthly_income_inr", "income", "monthly_income",
-        "loyalty_member", "loyalty", "is_loyalty",
-        "discount_inr", "discount", "purchased", "observed_purchase",
-        "web_visits_last_30d", "age"
-    ]
-    has_pricing_recon = any(c in cols_lower for c in pricing_recon_cols)
-
-    if not is_allocations and not has_pricing_recon and "customer_id" not in cols_lower:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Uploaded CSV does not match the required EconoCausal pricing or allocations schema. Missing required features (e.g., 'cart_baseline_value_inr', 'monthly_income_inr', or 'recommended_discount_inr').",
-        )
+    is_allocations = has_rec and (has_profit or has_uplift)
 
     if is_allocations:
         # Format 1: Allocations CSV
         df = df_uploaded.copy()
 
         # Standardize customer_id
-        id_col = cols_lower.get("customer_id")
-        if id_col:
-            df["customer_id"] = df[id_col].astype(str)
+        if id_col_raw:
+            df["customer_id"] = df[id_col_raw].astype(str)
         else:
             df["customer_id"] = [f"CUST_{i+1:06d}" for i in range(len(df))]
 
-        # Standardize cart_baseline_value_inr
         cart_col = cols_lower.get("cart_baseline_value_inr", cols_lower.get("cart_value", cols_lower.get("cart_baseline_value")))
         if cart_col:
             df["cart_baseline_value_inr"] = pd.to_numeric(df[cart_col], errors="coerce").fillna(100.0)
         else:
             df["cart_baseline_value_inr"] = 100.0
 
-        # Standardize monthly_income_inr
         inc_col = cols_lower.get("monthly_income_inr", cols_lower.get("income", cols_lower.get("monthly_income")))
         if inc_col:
             df["monthly_income_inr"] = pd.to_numeric(df[inc_col], errors="coerce").fillna(45000.0)
         else:
             df["monthly_income_inr"] = 45000.0
 
-        # Standardize loyalty_member
         loy_col = cols_lower.get("loyalty_member", cols_lower.get("loyalty", cols_lower.get("is_loyalty")))
         if loy_col:
             df["loyalty_member"] = pd.to_numeric(df[loy_col], errors="coerce").fillna(0).astype(int)
         else:
             df["loyalty_member"] = 0
 
-        # Standardize recommended_discount_inr
         rec_col = cols_lower.get("recommended_discount_inr", cols_lower.get("discount_inr", cols_lower.get("discount", cols_lower.get("recommended_discount"))))
         if rec_col:
             df["recommended_discount_inr"] = pd.to_numeric(df[rec_col], errors="coerce").fillna(0).astype(int)
         else:
             df["recommended_discount_inr"] = 0
 
-        # Standardize expected_incremental_purchase_uplift
         up_col = cols_lower.get("expected_incremental_purchase_uplift", cols_lower.get("uplift", cols_lower.get("tau_hat", cols_lower.get("incremental_purchase_uplift"))))
         if up_col:
             df["expected_incremental_purchase_uplift"] = pd.to_numeric(df[up_col], errors="coerce").fillna(0.0)
         else:
             df["expected_incremental_purchase_uplift"] = np.where(df["recommended_discount_inr"] == 10, 0.12, np.where(df["recommended_discount_inr"] == 20, 0.22, 0.0))
 
-        # Standardize baseline_conversion_prob_hat
         p0_col = cols_lower.get("baseline_conversion_prob_hat", cols_lower.get("p0_hat", cols_lower.get("baseline_conversion_prob")))
         if p0_col:
             df["baseline_conversion_prob_hat"] = pd.to_numeric(df[p0_col], errors="coerce").fillna(0.20)
         else:
             df["baseline_conversion_prob_hat"] = 0.20
 
-        # Standardize expected_incremental_profit_inr
         prof_col = cols_lower.get("expected_incremental_profit_inr", cols_lower.get("profit_inr", cols_lower.get("incremental_profit", cols_lower.get("profit"))))
         if prof_col:
             df["expected_incremental_profit_inr"] = pd.to_numeric(df[prof_col], errors="coerce").fillna(0.0)
@@ -1643,7 +1619,6 @@ async def upload_custom_dataset(
         df["income_tier"] = df["monthly_income_inr"].apply(categorize_income_tier)
         df["loyalty_label"] = df["loyalty_member"].apply(lambda x: "Loyalty Club" if int(x) == 1 else "Standard")
 
-        # Compute summary
         total_customers = len(df)
         w10 = (df["recommended_discount_inr"] == 10)
         w20 = (df["recommended_discount_inr"] == 20)
@@ -1696,7 +1671,14 @@ async def upload_custom_dataset(
             },
         }
 
-        _allocations_df_cache = df
+        alloc_cols = [
+            "customer_id", "cart_baseline_value_inr", "monthly_income_inr",
+            "loyalty_member", "recommended_discount_inr", "expected_incremental_purchase_uplift",
+            "expected_incremental_profit_inr", "baseline_conversion_prob_hat",
+            "income_tier", "loyalty_label"
+        ]
+        # ATOMIC ACTIVATION: Only commit to module caches after complete verification
+        _allocations_df_cache = df[alloc_cols]
         _summary_json_cache = summary_data
         _baseline_cache.invalidate()
         _simulation_cache.clear()
@@ -1711,6 +1693,34 @@ async def upload_custom_dataset(
 
     else:
         # Format 2: Customer Pricing Dataset
+        # Safeguard 1: Strict schema validation - NO silent hardcoded defaults for missing causal features!
+        cart_col = cols_lower.get("cart_baseline_value_inr", cols_lower.get("cart_value", cols_lower.get("cart_baseline_value")))
+        inc_col = cols_lower.get("monthly_income_inr", cols_lower.get("monthly_income", cols_lower.get("income")))
+        loy_col = cols_lower.get("loyalty_member", cols_lower.get("loyalty", cols_lower.get("is_loyalty")))
+
+        # Check for incompatible / missing columns
+        missing_required = []
+        if not cart_col:
+            missing_required.append("cart_baseline_value_inr")
+        if not inc_col:
+            missing_required.append("monthly_income_inr")
+        if not loy_col:
+            missing_required.append("loyalty_member")
+
+        if missing_required:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=(
+                    f"Uploaded CSV does not match the required EconoCausal pricing or allocations schema. "
+                    f"Missing required causal features: {missing_required}. "
+                    "Strict causal inference requires genuine observable pretreatment covariates. "
+                    "Semantic Note: 'historical_spend' cannot be substituted for 'cart_baseline_value_inr'; "
+                    "'income_bracket' cannot be substituted for continuous 'monthly_income_inr'; "
+                    "and 'browsing_frequency' cannot be substituted for 'web_visits_last_30d'. "
+                    "Please provide a dataset matching the EconoCausal pricing schema or upload precomputed allocations."
+                ),
+            )
+
         try:
             import optimize_budget as ob
         except ImportError as e:
@@ -1720,31 +1730,41 @@ async def upload_custom_dataset(
             )
 
         df = df_uploaded.copy()
-
-        # Check required columns
-        id_col = cols_lower.get("customer_id")
-        if id_col:
-            df["customer_id"] = df[id_col].astype(str)
+        if id_col_raw:
+            df["customer_id"] = df[id_col_raw].astype(str)
         else:
             df["customer_id"] = [f"CUST_{i+1:06d}" for i in range(len(df))]
 
-        cart_col = cols_lower.get("cart_baseline_value_inr", cols_lower.get("cart_value", cols_lower.get("cart_baseline_value")))
-        if cart_col:
-            df["cart_baseline_value_inr"] = pd.to_numeric(df[cart_col], errors="coerce").fillna(100.0)
-        else:
-            df["cart_baseline_value_inr"] = 100.0
+        # Resolve core causal covariates without inventing missing core features
+        df["cart_baseline_value_inr"] = pd.to_numeric(df[cart_col], errors="coerce").fillna(100.0)
+        df["monthly_income_inr"] = pd.to_numeric(df[inc_col], errors="coerce").fillna(45000.0)
+        df["loyalty_member"] = pd.to_numeric(df[loy_col], errors="coerce").fillna(0).astype(int)
 
-        inc_col = cols_lower.get("monthly_income_inr", cols_lower.get("income", cols_lower.get("monthly_income")))
-        if inc_col:
-            df["monthly_income_inr"] = pd.to_numeric(df[inc_col], errors="coerce").fillna(45000.0)
-        else:
-            df["monthly_income_inr"] = 45000.0
+        # Pretreatment secondary features (use CSV columns if present, otherwise default to median)
+        df["age"] = pd.to_numeric(df[cols_lower["age"]], errors="coerce").fillna(35).astype(int) if "age" in cols_lower else 35
 
-        loy_col = cols_lower.get("loyalty_member", cols_lower.get("loyalty", cols_lower.get("is_loyalty")))
-        if loy_col:
-            df["loyalty_member"] = pd.to_numeric(df[loy_col], errors="coerce").fillna(0).astype(int)
+        visits_col = cols_lower.get("web_visits_last_30d", cols_lower.get("web_visits"))
+        df["web_visits_last_30d"] = pd.to_numeric(df[visits_col], errors="coerce").fillna(12).astype(int) if visits_col else 12
+
+        purchases_col = cols_lower.get("past_purchases_count", cols_lower.get("past_purchases", cols_lower.get("purchase_count")))
+        df["past_purchases_count"] = pd.to_numeric(df[purchases_col], errors="coerce").fillna(4).astype(int) if purchases_col else 4
+
+        recency_col = cols_lower.get("days_since_last_purchase", cols_lower.get("days_since_purchase"))
+        df["days_since_last_purchase"] = pd.to_numeric(df[recency_col], errors="coerce").fillna(25).astype(int) if recency_col else 25
+
+        has_device_dummies = "device_mobile" in cols_lower and "device_tablet" in cols_lower
+        has_device_str = "device_type" in cols_lower or "device" in cols_lower
+        if has_device_dummies:
+            df["device_Mobile"] = pd.to_numeric(df[cols_lower["device_mobile"]], errors="coerce").fillna(0).astype(int)
+            df["device_Tablet"] = pd.to_numeric(df[cols_lower["device_tablet"]], errors="coerce").fillna(0).astype(int)
+        elif has_device_str:
+            dev_col_name = cols_lower.get("device_type", cols_lower.get("device"))
+            dev_vals = df[dev_col_name].astype(str).str.strip().str.lower()
+            df["device_Mobile"] = (dev_vals == "mobile").astype(int)
+            df["device_Tablet"] = (dev_vals == "tablet").astype(int)
         else:
-            df["loyalty_member"] = 0
+            df["device_Mobile"] = 1
+            df["device_Tablet"] = 0
 
         # CATE uplift prediction (tau_hat_10 and tau_hat_20)
         if "tau_hat_10" not in df.columns or "tau_hat_20" not in df.columns:
@@ -1758,35 +1778,33 @@ async def upload_custom_dataset(
                 except Exception:
                     pass
 
-        # If still missing, run genuine CausalDMLService inference
+        # If missing, run genuine CausalDMLService inference in bounded sequential batches (5k chunks)
         if "tau_hat_10" not in df.columns or df["tau_hat_10"].isna().any():
             try:
-                # Prepare feature matrix for CausalDMLService
                 feature_matrix = pd.DataFrame()
                 feature_matrix["customer_id"] = df["customer_id"]
-                feature_matrix["age"] = pd.to_numeric(df[cols_lower.get("age")], errors="coerce").fillna(35) if "age" in cols_lower else 35
+                feature_matrix["age"] = df["age"]
                 feature_matrix["monthly_income_inr"] = df["monthly_income_inr"]
-                feature_matrix["web_visits_last_30d"] = pd.to_numeric(df[cols_lower.get("web_visits_last_30d")], errors="coerce").fillna(12) if "web_visits_last_30d" in cols_lower else 12
-                feature_matrix["past_purchases_count"] = pd.to_numeric(df[cols_lower.get("past_purchases_count")], errors="coerce").fillna(4) if "past_purchases_count" in cols_lower else 4
-                feature_matrix["days_since_last_purchase"] = pd.to_numeric(df[cols_lower.get("days_since_last_purchase")], errors="coerce").fillna(25) if "days_since_last_purchase" in cols_lower else 25
+                feature_matrix["web_visits_last_30d"] = df["web_visits_last_30d"]
+                feature_matrix["past_purchases_count"] = df["past_purchases_count"]
+                feature_matrix["days_since_last_purchase"] = df["days_since_last_purchase"]
                 feature_matrix["cart_baseline_value_inr"] = df["cart_baseline_value_inr"]
                 feature_matrix["loyalty_member"] = df["loyalty_member"]
-
-                # Device features
-                if "device_mobile" in cols_lower and "device_tablet" in cols_lower:
-                    feature_matrix["device_Mobile"] = pd.to_numeric(df[cols_lower.get("device_mobile")], errors="coerce").fillna(0).astype(int)
-                    feature_matrix["device_Tablet"] = pd.to_numeric(df[cols_lower.get("device_tablet")], errors="coerce").fillna(0).astype(int)
-                elif "device_type" in cols_lower or "device" in cols_lower:
-                    dev_col = cols_lower.get("device_type", cols_lower.get("device"))
-                    feature_matrix["device_type"] = df[dev_col].astype(str)
-                else:
-                    feature_matrix["device_Mobile"] = 1
-                    feature_matrix["device_Tablet"] = 0
+                feature_matrix["device_Mobile"] = df["device_Mobile"]
+                feature_matrix["device_Tablet"] = df["device_Tablet"]
 
                 service = CausalDMLService.get_instance()
-                cate_batch = service.predict_cate(feature_matrix, return_intervals=False)
-                df["tau_hat_10"] = [p.tau_hat_10 for p in cate_batch.predictions]
-                df["tau_hat_20"] = [p.tau_hat_20 for p in cate_batch.predictions]
+                chunk_size = 5000
+                all_tau_10 = []
+                all_tau_20 = []
+                for start_idx in range(0, len(feature_matrix), chunk_size):
+                    chunk = feature_matrix.iloc[start_idx : start_idx + chunk_size]
+                    cate_batch = service.predict_cate(chunk, return_intervals=False)
+                    all_tau_10.extend([p.tau_hat_10 for p in cate_batch.predictions])
+                    all_tau_20.extend([p.tau_hat_20 for p in cate_batch.predictions])
+
+                df["tau_hat_10"] = all_tau_10
+                df["tau_hat_20"] = all_tau_20
             except Exception as e:
                 raise HTTPException(
                     status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -1810,7 +1828,7 @@ async def upload_custom_dataset(
         # Eligibility check
         eligible_10, eligible_20 = ob.check_eligibility(df)
 
-        upload_budget = min(50000.0, max(5000.0, len(df) * 5.0))
+        upload_budget = min(500000.0, max(5000.0, len(df) * 5.0))
         v10, v20, c10, c20 = ob.compute_offer_values_and_costs(
             df, p0_hat, objective="max_profit", margin_ratio=0.30, budget_type="allocated",
             eligible_10=eligible_10, eligible_20=eligible_20
@@ -1861,7 +1879,7 @@ async def upload_custom_dataset(
                 "objective": "max_profit",
                 "margin_ratio": 0.30,
                 "budget_type": "allocated",
-                "solver": "milp",
+                "solver": "milp" if len(df) <= 15000 else "greedy",
                 "source_file": file.filename,
             },
         }
@@ -1872,6 +1890,7 @@ async def upload_custom_dataset(
             "expected_incremental_profit_inr", "baseline_conversion_prob_hat",
             "income_tier", "loyalty_label"
         ]
+        # ATOMIC ACTIVATION: Only commit to module caches after complete verification
         _allocations_df_cache = df[alloc_cols]
         _summary_json_cache = summary_data
         _baseline_cache.invalidate()

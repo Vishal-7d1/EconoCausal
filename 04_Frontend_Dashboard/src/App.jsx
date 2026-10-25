@@ -809,12 +809,6 @@ export default function App() {
         return;
       }
 
-      setPricingDataset(dataset);
-      setDatasetSearch('');
-      setDatasetColumnFilter('');
-      setDatasetColumnSearch('');
-      setDatasetPage(1);
-
       // 2. Synchronize pricing dataset to FastAPI backend to power all modules (Overview, Simulator, Recommendations, Charts)
       const hasGroundTruthCols = dataset.headers.some((h) => String(h).toLowerCase().startsWith('true_'));
       const uploadUrl = hasGroundTruthCols
@@ -832,6 +826,13 @@ export default function App() {
       if (!res.ok) {
         throw new Error(resData.detail || 'Backend failed to process and optimize the uploaded CSV.');
       }
+
+      // 3. Atomically activate and display dataset in UI only after backend confirmation
+      setPricingDataset(dataset);
+      setDatasetSearch('');
+      setDatasetColumnFilter('');
+      setDatasetColumnSearch('');
+      setDatasetPage(1);
 
       setDatasetUploadSuccess(
         resData.message || `Successfully loaded & synchronized '${file.name}' (${resData.active_dataset?.total_records?.toLocaleString() || '10,000'} customers) across all dashboard views!`
