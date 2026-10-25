@@ -1498,3 +1498,181 @@
 :root[data-theme="dark"] .ov-cm-val.muted {
   color: #64748B;
 }
+
+/* ── Active Dataset Status & Sync Banner ─────────────────────────────────── */
+.ov-dataset-sync-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 20px;
+  margin: 16px 24px 0 24px;
+  background: var(--bg-card, #FFFFFF);
+  border: 1px solid var(--border-color, #E5E7EB);
+  border-radius: 12px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  flex-wrap: wrap;
+}
+
+.ov-sync-banner-left {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.ov-sync-badge-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.ov-sync-status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.ov-sync-status-dot.baseline {
+  background: #10B981;
+  box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.2);
+}
+
+.ov-sync-status-dot.custom {
+  background: #3B82F6;
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.25);
+}
+
+.ov-sync-pill {
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 3px 8px;
+  border-radius: 6px;
+}
+
+.ov-sync-pill.baseline {
+  background: rgba(16, 185, 129, 0.1);
+  color: #059669;
+}
+
+.ov-sync-pill.custom {
+  background: rgba(59, 130, 246, 0.1);
+  color: #2563EB;
+}
+
+.ov-sync-filename {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-primary, #171923);
+}
+
+.ov-sync-count {
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--text-secondary, #6B7280);
+}
+
+.ov-sync-subtext {
+  font-size: 0.75rem;
+  color: var(--text-secondary, #6B7280);
+  line-height: 1.4;
+}
+
+.ov-sync-banner-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.ov-sync-upload-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 14px;
+  background: #D9253D;
+  color: #FFFFFF;
+  font-size: 0.8rem;
+  font-weight: 600;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  user-select: none;
+}
+
+.ov-sync-upload-btn:hover {
+  background: #B91C1C;
+  transform: translateY(-1px);
+}
+
+.ov-sync-reset-btn {
+  padding: 7px 12px;
+  background: transparent;
+  color: #D9253D;
+  border: 1px solid rgba(217, 37, 61, 0.3);
+  font-size: 0.8rem;
+  font-weight: 600;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.ov-sync-reset-btn:hover {
+  background: rgba(217, 37, 61, 0.08);
+}
+
+/* Alert Notification Boxes */
+.ov-sync-alert {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 10px 24px 0 24px;
+  padding: 10px 16px;
+  border-radius: 8px;
+  font-size: 0.825rem;
+  font-weight: 600;
+}
+
+.ov-sync-alert.success {
+  background: rgba(21, 148, 71, 0.1);
+  border: 1px solid rgba(21, 148, 71, 0.25);
+  color: #159447;
+}
+
+.ov-sync-alert.error {
+  background: rgba(217, 37, 61, 0.1);
+  border: 1px solid rgba(217, 37, 61, 0.25);
+  color: #D9253D;
+}
+
+.ov-alert-close-btn {
+  background: transparent;
+  border: none;
+  font-weight: 700;
+  font-size: 0.95rem;
+  cursor: pointer;
+  color: inherit;
+  opacity: 0.7;
+}
+
+.ov-alert-close-btn:hover {
+  opacity: 1;
+}
+
+:root[data-theme="dark"] .ov-dataset-sync-banner {
+  background: #1E293B;
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+:root[data-theme="dark"] .ov-sync-filename {
+  color: #F8FAFC;
+}
+
+:root[data-theme="dark"] .ov-sync-count,
+:root[data-theme="dark"] .ov-sync-subtext {
+  color: #94A3B8;
+}

@@ -281,6 +281,13 @@ export default function DashboardOverview({
   activeViewMode = 'pricing',
   categoryFilter = 'all',
   selectedRange = 'May 31, 2024 – May 31, 2024',
+  activeDatasetMeta,
+  onUploadDataset,
+  onResetDataset,
+  isUploadingDataset,
+  uploadSuccessMessage,
+  uploadErrorMessage,
+  onClearUploadMessage,
 }) {
   const [ruleOverrides, setRuleOverrides] = useState({});
   const toggleRule = (ruleName) => {
@@ -537,6 +544,78 @@ export default function DashboardOverview({
           TOP HEADER: Clean Enterprise SaaS Header
           ─────────────────────────────────────────────────────────────────── */}
       {/* Unified TopNavbar rendered globally in App.jsx */}
+
+      {/* ───────────────────────────────────────────────────────────────────
+          ROW 0: ACTIVE DATASET STATUS & DIRECT UPLOAD BANNER
+          ─────────────────────────────────────────────────────────────────── */}
+      <section className="ov-dataset-sync-banner" aria-label="Active Dataset Synchronization">
+        <div className="ov-sync-banner-left">
+          <div className="ov-sync-badge-group">
+            <span className={`ov-sync-status-dot ${activeDatasetMeta?.is_custom ? 'custom' : 'baseline'}`} />
+            <span className={`ov-sync-pill ${activeDatasetMeta?.is_custom ? 'custom' : 'baseline'}`}>
+              {activeDatasetMeta?.is_custom ? 'Custom Dataset Synchronized' : 'Baseline 10k Benchmark'}
+            </span>
+            <span className="ov-sync-filename">
+              📄 {activeDatasetMeta?.filename || 'optimal_discount_allocations.csv'}
+            </span>
+            <span className="ov-sync-count">
+              ({fmt(activeDatasetMeta?.total_records ?? (opt?.count_control_0 != null ? opt.count_control_0 + opt.total_discounted_customers : 10000))} customers)
+            </span>
+          </div>
+          <div className="ov-sync-subtext">
+            {activeDatasetMeta?.is_custom
+              ? '⚡ Real-time EconML Causal DML treatment effects & HiGHS MILP Knapsack allocations are active and reflected across all cards, charts, and recommendations.'
+              : '⚡ Currently displaying official 10,000 customer benchmark dataset. Upload any customer pricing CSV (.csv) to re-estimate causal uplifts in real-time.'}
+          </div>
+        </div>
+
+        <div className="ov-sync-banner-right">
+          {onUploadDataset && (
+            <label className="ov-sync-upload-btn" style={{ opacity: isUploadingDataset ? 0.7 : 1, pointerEvents: isUploadingDataset ? 'none' : 'auto' }}>
+              <span aria-hidden="true">{isUploadingDataset ? '⏳' : '↑'}</span>
+              <span>{isUploadingDataset ? 'Optimizing Dataset...' : 'Upload & Optimize CSV'}</span>
+              <input
+                type="file"
+                accept=".csv,text/csv"
+                onChange={onUploadDataset}
+                disabled={isUploadingDataset}
+                style={{ display: 'none' }}
+              />
+            </label>
+          )}
+
+          {activeDatasetMeta?.is_custom && onResetDataset && (
+            <button
+              type="button"
+              className="ov-sync-reset-btn"
+              onClick={onResetDataset}
+              disabled={isUploadingDataset}
+              title="Reset dashboard back to reproducible 10k benchmark"
+            >
+              ↺ Reset to Benchmark
+            </button>
+          )}
+        </div>
+      </section>
+
+      {/* Upload Notification Alerts on Dashboard Overview */}
+      {uploadSuccessMessage && (
+        <div className="ov-sync-alert success" role="status">
+          <span>✅ {uploadSuccessMessage}</span>
+          {onClearUploadMessage && (
+            <button type="button" onClick={onClearUploadMessage} className="ov-alert-close-btn" aria-label="Dismiss">✕</button>
+          )}
+        </div>
+      )}
+
+      {uploadErrorMessage && (
+        <div className="ov-sync-alert error" role="alert">
+          <span>⚠ {uploadErrorMessage}</span>
+          {onClearUploadMessage && (
+            <button type="button" onClick={onClearUploadMessage} className="ov-alert-close-btn" aria-label="Dismiss">✕</button>
+          )}
+        </div>
+      )}
 
       {/* ───────────────────────────────────────────────────────────────────
           ROW 1: 6 KPI SUMMARY CARDS
