@@ -185,10 +185,11 @@
       "hypothesis": "Adding unobserved confounder noise must not alter estimated treatment effect.",
       "original_effect": 0.1757,
       "new_effect": 0.1758,
-      "p_value": 0.741,
+      "p_value": null,
+      "p_value_status": "unavailable (DoWhy returned None)",
       "drift_pct": 0.01,
       "tolerance": "< 5.0% relative drift",
-      "verdict": "PASS (Effect Invariant)",
+      "verdict": "PASS (Effect Invariant, drift: 0.01%)",
       "passed": true
     },
     {
@@ -197,9 +198,10 @@
       "hypothesis": "Replacing treatment with random noise must collapse effect towards zero.",
       "original_effect": 0.1757,
       "new_effect": 0.0001,
-      "p_value": 0.485,
-      "tolerance": "p > 0.05 or effect ~ 0",
-      "verdict": "PASS (Effect Collapses to Zero)",
+      "p_value": null,
+      "p_value_status": "unavailable (DoWhy returned None)",
+      "tolerance": "effect ~ 0 (|effect| < 0.02) or p > 0.05",
+      "verdict": "PASS (Effect Collapses to Zero: +0.0001)",
       "passed": true
     },
     {
@@ -210,7 +212,7 @@
       "new_effect": 0.1789,
       "drift_pct": 1.79,
       "tolerance": "< 6.0% relative drift",
-      "verdict": "PASS (Subsample Robust)",
+      "verdict": "PASS (Subsample Robust, drift: 1.79%)",
       "passed": true
     }
   ],
