@@ -57,6 +57,10 @@ Thumbs.db
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+*.db
+*.db-wal
+*.db-shm
+*.sqlite3
 02_Causal_ML/outputs/test_scratch/
 03_Backend_Optimization/outputs/test_scratch_val/
 03_Backend_Optimization/outputs/test_scratch/

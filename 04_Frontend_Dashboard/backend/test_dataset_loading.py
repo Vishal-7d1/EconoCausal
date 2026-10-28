@@ -20,9 +20,15 @@ Covers the 13 required test cases:
 """
 
 import io
+import sys
 import unittest
+from pathlib import Path
 import pandas as pd
 from fastapi.testclient import TestClient
+
+BACKEND_DIR = Path(__file__).resolve().parent
+if str(BACKEND_DIR) not in sys.path:
+    sys.path.insert(0, str(BACKEND_DIR))
 
 from app import app, reset_to_default_dataset, CLEANED_DATA_PATH
 

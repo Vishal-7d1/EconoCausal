@@ -1,0 +1,46 @@
+# EconoCausal - Core Dependency Manifest
+# Python >= 3.10, < 3.12 (Tested on Python 3.11.4 Windows AMD64)
+# 
+# Installation Instructions:
+# 1. Create an isolated virtual environment:
+#      python -m venv .venv
+# 2. Activate the virtual environment:
+#      Windows (PowerShell): .\.venv\Scripts\Activate.ps1
+#      Linux/macOS: source .venv/bin/activate
+# 3. Upgrade pip:
+#      python -m pip install --upgrade pip
+# 4. Install dependencies:
+#      pip install -r requirements.txt
+#
+# Note on Windows Application Control (WDAC / Smart App Control):
+# If EconML binary C-extensions (.pyd) are blocked when downloaded,
+# unblock them in PowerShell:
+#      Get-ChildItem -Path .venv\Lib\site-packages\econml -Recurse -Filter "*.pyd" | Unblock-File
+
+# Numerical, Scientific & Machine Learning
+numpy==2.4.6
+scipy==1.15.3
+pandas==2.3.3
+scikit-learn==1.8.0
+joblib==1.5.3
+statsmodels==0.15.0
+lightgbm==4.7.0
+
+# Causal Machine Learning & Identification
+econml==0.17.0
+dowhy==0.14
+networkx==3.6.1
+sympy==1.14.0
+shap==0.51.0
+sparse==0.19.2
+
+# Visualization & Plotting
+matplotlib==3.10.8
+
+# Backend Dashboard API & Validation
+fastapi==0.135.3
+pydantic==2.13.0
+pydantic-settings==2.14.0
+uvicorn==0.44.0
+python-multipart==0.0.26
+httpx==0.28.1

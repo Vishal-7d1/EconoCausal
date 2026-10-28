@@ -445,6 +445,17 @@ class TestCausalDMLService(unittest.TestCase):
         resp_bad = self.client.post("/api/causal/predict", json=bad_feature_payload)
         self.assertEqual(resp_bad.status_code, 422)
 
+        # 13G: Honest error handling when model artifact is unavailable
+        with patch.object(CausalDMLService, "get_instance") as mock_get_inst:
+            mock_service = unittest.mock.MagicMock()
+            mock_service.predict_cate.side_effect = ModelArtifactError(
+                "DML model artifact not found at: /path/to/missing/dml_model.joblib"
+            )
+            mock_get_inst.return_value = mock_service
+            resp_no_model = self.client.post("/api/causal/predict", json=single_record)
+            self.assertEqual(resp_no_model.status_code, 500)
+            self.assertIn("DML model artifact not found", resp_no_model.json()["detail"])
+
     # -------------------------------------------------------------------------
     # 14. Upload integration regression tests
     # -------------------------------------------------------------------------

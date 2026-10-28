@@ -7,11 +7,16 @@ Atomic Activation, and Dashboard Synchronization.
 """
 
 import io
+import sys
 import unittest
 from unittest.mock import patch
 from pathlib import Path
 import pandas as pd
 from fastapi.testclient import TestClient
+
+BACKEND_DIR = Path(__file__).resolve().parent
+if str(BACKEND_DIR) not in sys.path:
+    sys.path.insert(0, str(BACKEND_DIR))
 
 from app import (
     app,
