@@ -16,6 +16,7 @@ from __future__ import annotations
 import collections
 import io
 import json
+import logging
 import math
 import os
 import sys
@@ -32,6 +33,8 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, Response
 from pydantic import BaseModel, Field, field_validator
+
+logger = logging.getLogger("econocausal.api")
 
 from dml_service import (
     CausalDMLService,
@@ -160,7 +163,7 @@ MAX_SIMULATION_CACHE_SIZE = 30
 class SimulationCache:
     """
     Thread-safe, bounded LRU cache for simulation results and customer allocations.
-    Associates summary metrics and customer allocations with unique simulation_ids.
+    Backstopped by relational SQLite persistence for crash resilience and auditability.
     """
     def __init__(self, max_size: int = MAX_SIMULATION_CACHE_SIZE):
         self._max_size = max_size
@@ -188,13 +191,94 @@ class SimulationCache:
                 "allocations_df": allocations_df,
             }
 
+        # Relational Persistence: Atomically store campaign and optimization run to SQLite
+        try:
+            import db
+            camp_id = f"camp_{simulation_id}"
+            ds_id = _active_dataset_info.get("dataset_id") or "ds_default_benchmark"
+
+            if ds_id == "ds_default_benchmark":
+                db.sync_baseline_artifacts_to_db()
+
+            db.CampaignRepository.create_campaign(
+                campaign_id=camp_id,
+                campaign_name=f"Simulation Campaign ({simulation_id})",
+                dataset_id=ds_id,
+                model_id="model_lineardml_v1",
+                total_budget=float(inputs.get("budget", 50000.0)),
+                budget_type=str(inputs.get("budget_type", "allocated")),
+                margin_ratio=float(inputs.get("margin_ratio", 0.30)),
+                status="SIMULATED",
+                description=f"Interactive simulation run ({inputs.get('solver', 'milp')}, {inputs.get('objective', 'max_profit')})",
+            )
+
+            db.OptimizationRepository.save_optimization_run(
+                optimization_id=simulation_id,
+                campaign_id=camp_id,
+                dataset_id=ds_id,
+                solver_type=str(performance.get("solver_used", inputs.get("solver", "milp"))),
+                objective=str(inputs.get("objective", "max_profit")),
+                total_customers=len(allocations_df),
+                allocated_budget=float(performance.get("allocated_budget", 0.0)),
+                nominal_coupon_liability=float(performance.get("nominal_coupon_liability", performance.get("allocated_budget", 0.0))),
+                expected_redeemed_cost=float(performance.get("expected_redeemed_cost", 0.0)),
+                estimated_incremental_profit_inr=float(performance.get("estimated_incremental_profit_inr", 0.0)),
+                return_on_discount_spend=float(performance.get("return_on_discount_spend", 0.0)),
+                count_control_0=int(performance.get("count_control_0", 0)),
+                count_discount_10=int(performance.get("count_discount_10", 0)),
+                count_discount_20=int(performance.get("count_discount_20", 0)),
+                summary_json={"inputs": inputs, "performance": performance},
+                allocations_df=allocations_df,
+            )
+        except Exception as exc:
+            logger.warning("Failed to persist simulation %s to database: %s", simulation_id, exc)
+
     def get(self, simulation_id: str) -> Optional[Dict[str, Any]]:
         with self._lock:
-            if simulation_id not in self._cache:
-                return None
-            entry = self._cache.pop(simulation_id)
-            self._cache[simulation_id] = entry
-            return entry
+            if simulation_id in self._cache:
+                entry = self._cache.pop(simulation_id)
+                self._cache[simulation_id] = entry
+                return entry
+
+        # Fallback to Database Persistence across server restarts / cache eviction
+        try:
+            import db
+            opt_run = db.OptimizationRepository.get_optimization_run(simulation_id)
+            if opt_run is not None:
+                alloc_df = db.OptimizationRepository.get_allocations_dataframe(simulation_id)
+                if not alloc_df.empty:
+                    summary_data = opt_run.get("summary") or {}
+                    inputs = summary_data.get("inputs") or {
+                        "budget": opt_run.get("allocated_budget", 50000.0),
+                        "solver": opt_run.get("solver_type", "milp"),
+                        "objective": opt_run.get("objective", "max_profit"),
+                    }
+                    performance = summary_data.get("performance") or {
+                        "allocated_budget": opt_run.get("allocated_budget"),
+                        "nominal_coupon_liability": opt_run.get("nominal_coupon_liability"),
+                        "expected_redeemed_cost": opt_run.get("expected_redeemed_cost"),
+                        "estimated_incremental_profit_inr": opt_run.get("estimated_incremental_profit_inr"),
+                        "return_on_discount_spend": opt_run.get("return_on_discount_spend"),
+                        "count_control_0": opt_run.get("count_control_0"),
+                        "count_discount_10": opt_run.get("count_discount_10"),
+                        "count_discount_20": opt_run.get("count_discount_20"),
+                        "solver_used": opt_run.get("solver_type"),
+                    }
+                    entry = {
+                        "simulation_id": simulation_id,
+                        "created_at": time.time(),
+                        "created_at_iso": opt_run.get("created_at") or time.strftime("%Y-%m-%d %H:%M:%S UTC", time.gmtime()),
+                        "inputs": inputs,
+                        "performance": performance,
+                        "allocations_df": alloc_df,
+                    }
+                    with self._lock:
+                        self._cache[simulation_id] = entry
+                    return entry
+        except Exception as exc:
+            logger.warning("Failed to reconstitute simulation %s from database: %s", simulation_id, exc)
+
+        return None
 
     def clear(self) -> None:
         with self._lock:
@@ -221,11 +305,17 @@ def reset_to_default_dataset() -> Dict[str, Any]:
     load_summary_json()
     _active_dataset_info = {
         "source": "default_benchmark",
+        "dataset_id": "ds_default_benchmark",
         "filename": "optimal_discount_allocations.csv",
         "total_records": len(_allocations_df_cache) if _allocations_df_cache is not None else 10000,
         "is_custom": False,
         "last_updated": time.strftime("%Y-%m-%d %H:%M:%S UTC", time.gmtime()),
     }
+    try:
+        import db
+        db.DatasetRepository.set_active_dataset("ds_default_benchmark")
+    except Exception:
+        pass
     return _active_dataset_info
 
 app = FastAPI(
@@ -251,6 +341,17 @@ app.add_middleware(
     allow_methods=["GET", "POST", "OPTIONS"],
     allow_headers=["*"],
 )
+
+
+@app.on_event("startup")
+def startup_event():
+    """Run database migrations and seed baseline artifacts on application startup."""
+    try:
+        import db
+        db.sync_baseline_artifacts_to_db()
+        logger.info("Database initialized and baseline artifacts synchronized.")
+    except Exception as exc:
+        logger.warning("Database initialization during startup encountered an issue: %s", exc)
 
 
 def _sanitize_validation_errors(obj: Any) -> Any:
@@ -1682,8 +1783,61 @@ async def upload_custom_dataset(
         _summary_json_cache = summary_data
         _baseline_cache.invalidate()
         _simulation_cache.clear()
+
+        new_ds_id = f"ds_alloc_{uuid.uuid4().hex[:10]}"
+        try:
+            import db
+            db.DatasetRepository.create_or_update_dataset(
+                dataset_id=new_ds_id,
+                dataset_name=f"Custom Allocations ({file.filename})",
+                filename=file.filename,
+                source_type="uploaded_allocations",
+                total_records=total_customers,
+                is_active=1,
+                status="READY",
+            )
+            db.DatasetRepository.record_processing_run(
+                run_id=f"run_{uuid.uuid4().hex[:10]}",
+                dataset_id=new_ds_id,
+                run_type="uploaded_allocations_ingest",
+                status="COMPLETED",
+                records_processed=total_customers,
+                metrics_json=data_quality_report,
+            )
+            camp_id = f"camp_{new_ds_id}"
+            db.CampaignRepository.create_campaign(
+                campaign_id=camp_id,
+                campaign_name=f"Campaign for {file.filename}",
+                dataset_id=new_ds_id,
+                total_budget=total_budget,
+                budget_type="allocated",
+                margin_ratio=0.30,
+                status="OPTIMIZED",
+            )
+            db.OptimizationRepository.save_optimization_run(
+                optimization_id=f"opt_{new_ds_id}",
+                campaign_id=camp_id,
+                dataset_id=new_ds_id,
+                solver_type="uploaded_allocations",
+                objective="max_profit",
+                total_customers=total_customers,
+                allocated_budget=allocated_budget,
+                nominal_coupon_liability=nominal_liability,
+                expected_redeemed_cost=redeemed_cost,
+                estimated_incremental_profit_inr=inc_profit,
+                return_on_discount_spend=rods,
+                count_control_0=count_0,
+                count_discount_10=count_10,
+                count_discount_20=count_20,
+                summary_json=summary_data,
+                allocations_df=df[alloc_cols],
+            )
+        except Exception as exc:
+            logger.warning("Database persistence for uploaded allocations failed: %s", exc)
+
         _active_dataset_info = {
             "source": "uploaded_allocations",
+            "dataset_id": new_ds_id,
             "filename": file.filename,
             "total_records": total_customers,
             "is_custom": True,
@@ -1895,8 +2049,61 @@ async def upload_custom_dataset(
         _summary_json_cache = summary_data
         _baseline_cache.invalidate()
         _simulation_cache.clear()
+
+        new_ds_id = f"ds_pricing_{uuid.uuid4().hex[:10]}"
+        try:
+            import db
+            db.DatasetRepository.create_or_update_dataset(
+                dataset_id=new_ds_id,
+                dataset_name=f"Custom Pricing ({file.filename})",
+                filename=file.filename,
+                source_type="uploaded_pricing_dataset",
+                total_records=len(df),
+                is_active=1,
+                status="READY",
+            )
+            db.DatasetRepository.record_processing_run(
+                run_id=f"run_{uuid.uuid4().hex[:10]}",
+                dataset_id=new_ds_id,
+                run_type="uploaded_pricing_optimize",
+                status="COMPLETED",
+                records_processed=len(df),
+                metrics_json=data_quality_report,
+            )
+            camp_id = f"camp_{new_ds_id}"
+            db.CampaignRepository.create_campaign(
+                campaign_id=camp_id,
+                campaign_name=f"Campaign for {file.filename}",
+                dataset_id=new_ds_id,
+                total_budget=upload_budget,
+                budget_type="allocated",
+                margin_ratio=0.30,
+                status="OPTIMIZED",
+            )
+            db.OptimizationRepository.save_optimization_run(
+                optimization_id=f"opt_{new_ds_id}",
+                campaign_id=camp_id,
+                dataset_id=new_ds_id,
+                solver_type="milp" if len(df) <= 15000 else "greedy",
+                objective="max_profit",
+                total_customers=len(df),
+                allocated_budget=float(opt_perf.get("allocated_budget", 0.0)),
+                nominal_coupon_liability=float(opt_perf.get("nominal_coupon_liability", opt_perf.get("allocated_budget", 0.0))),
+                expected_redeemed_cost=float(opt_perf.get("expected_redeemed_cost", 0.0)),
+                estimated_incremental_profit_inr=float(opt_perf.get("estimated_incremental_profit_inr", 0.0)),
+                return_on_discount_spend=float(opt_perf.get("return_on_discount_spend", 0.0)),
+                count_control_0=int(opt_perf.get("count_control_0", 0)),
+                count_discount_10=int(opt_perf.get("count_discount_10", 0)),
+                count_discount_20=int(opt_perf.get("count_discount_20", 0)),
+                summary_json=summary_data,
+                allocations_df=df[alloc_cols],
+            )
+        except Exception as exc:
+            logger.warning("Database persistence for uploaded pricing dataset failed: %s", exc)
+
         _active_dataset_info = {
             "source": "uploaded_pricing_dataset",
+            "dataset_id": new_ds_id,
             "filename": file.filename,
             "total_records": len(df),
             "is_custom": True,

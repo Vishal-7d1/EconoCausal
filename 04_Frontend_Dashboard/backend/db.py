@@ -966,6 +966,20 @@ class CausalAuditRepository:
                 conn.close()
 
     @staticmethod
+    def list_audit_runs(conn: Optional[sqlite3.Connection] = None) -> List[Dict[str, Any]]:
+        owns = False
+        if conn is None:
+            conn = get_connection()
+            owns = True
+        try:
+            cursor = conn.cursor()
+            cursor.execute("SELECT * FROM causal_audit_runs ORDER BY created_at DESC;")
+            return [dict(r) for r in cursor.fetchall()]
+        finally:
+            if owns:
+                conn.close()
+
+    @staticmethod
     def record_drift_run(
         drift_id: str,
         dataset_id: str,
@@ -1035,6 +1049,20 @@ class CausalAuditRepository:
                 except Exception:
                     pass
             return res
+        finally:
+            if owns:
+                conn.close()
+
+    @staticmethod
+    def list_drift_runs(conn: Optional[sqlite3.Connection] = None) -> List[Dict[str, Any]]:
+        owns = False
+        if conn is None:
+            conn = get_connection()
+            owns = True
+        try:
+            cursor = conn.cursor()
+            cursor.execute("SELECT * FROM drift_monitoring_runs ORDER BY created_at DESC;")
+            return [dict(r) for r in cursor.fetchall()]
         finally:
             if owns:
                 conn.close()
