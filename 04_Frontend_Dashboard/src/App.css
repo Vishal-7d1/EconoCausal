@@ -766,3 +766,88 @@
 
 /* ── Misc Helpers ── */
 .ec-dataset-empty-art { font-size: 3rem; color: var(--text-tertiary); }
+
+/* ── Print Stylesheet (@media print) ── */
+@media print {
+  *,
+  *::before,
+  *::after {
+    background: transparent !important;
+    color: #111827 !important;
+    box-shadow: none !important;
+    text-shadow: none !important;
+  }
+
+  body,
+  .ec-app-shell,
+  .ec-main-area,
+  .dashboard-container {
+    background: #ffffff !important;
+    color: #111827 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    overflow: visible !important;
+  }
+
+  /* Hide interactive chrome and navigation */
+  .ec-sidebar,
+  .top-navbar,
+  .btn,
+  button,
+  .modal-close,
+  .theme-toggle,
+  .ec-actions-bar,
+  .filter-bar,
+  .pagination-controls,
+  .ec-dataset-upload-zone {
+    display: none !important;
+  }
+
+  /* Ensure cards and charts print cleanly without mid-page tears */
+  .chart-card,
+  .kpi-card,
+  .methodology-item,
+  .report-section-card,
+  .table-container {
+    border: 1px solid #d1d5db !important;
+    border-radius: 6px !important;
+    margin-bottom: 1rem !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+    background: #ffffff !important;
+  }
+
+  /* Table readability */
+  table {
+    border-collapse: collapse !important;
+    width: 100% !important;
+  }
+
+  th,
+  td {
+    border: 1px solid #e5e7eb !important;
+    padding: 6px 10px !important;
+    font-size: 9pt !important;
+  }
+
+  th {
+    background: #f3f4f6 !important;
+    font-weight: 700 !important;
+  }
+
+  /* Headings */
+  h1, h2, h3, h4 {
+    page-break-after: avoid !important;
+    break-after: avoid !important;
+    color: #111827 !important;
+  }
+
+  /* Link formatting */
+  a, a:visited {
+    text-decoration: underline !important;
+    color: #1f2937 !important;
+  }
+}
+

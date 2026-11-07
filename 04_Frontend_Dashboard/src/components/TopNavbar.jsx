@@ -28,10 +28,6 @@ import {
   Moon,
   CheckCircle2,
   FileText,
-  Sliders,
-  ShieldCheck,
-  RotateCcw,
-  Sparkles,
   ExternalLink,
   Calculator,
 } from 'lucide-react';
@@ -39,7 +35,7 @@ import './TopNavbar.css';
 
 export default function TopNavbar({
   activeTab = 'overview',
-  activeTabLabel = 'Dashboard',
+  activeTabLabel: _activeTabLabel = 'Dashboard',
   theme = 'light',
   onToggleTheme,
   activeViewMode = 'pricing',
