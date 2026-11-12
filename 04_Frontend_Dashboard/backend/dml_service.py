@@ -22,9 +22,26 @@ from __future__ import annotations
 
 import logging
 import os
+import sys
 import threading
+import types
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple, Union
+
+# Windows Defender Application Control (WDAC) compatibility stub:
+# Prevent loading blocked compiled C-extensions (_dynfunc.pyd from numba, _criterion.pyd from grf)
+# since the trained LinearDML model relies strictly on NumPy, Scipy, and scikit-learn regressors.
+if "sparse" not in sys.modules:
+    dummy_sparse = types.ModuleType("sparse")
+    dummy_sparse.SparseArray = type("SparseArray", (), {})
+    dummy_sparse.COO = type("COO", (), {})
+    dummy_sparse.issparse = lambda x: False
+    sys.modules["sparse"] = dummy_sparse
+
+if "econml.dml.causal_forest" not in sys.modules:
+    dummy_cf = types.ModuleType("econml.dml.causal_forest")
+    dummy_cf.CausalForestDML = type("CausalForestDML", (), {})
+    sys.modules["econml.dml.causal_forest"] = dummy_cf
 
 import joblib
 import numpy as np

@@ -52,7 +52,8 @@ from scipy.stats import pearsonr, spearmanr
 from sklearn.preprocessing import StandardScaler
 from lightgbm import LGBMClassifier, LGBMRegressor
 
-from econml.dml import CausalForestDML, LinearDML
+# Lazy import of EconML estimators inside train_dml_model to permit CLI inspection
+# and argument validation on systems with WDAC/AppLocker constraints.
 
 
 # Valid Pretreatment Covariates (X) strictly required for DML
@@ -248,6 +249,7 @@ def train_dml_model(
     t_start = time.time()
 
     if estimator_type == "causal_forest":
+        from econml.dml import CausalForestDML
         # Ensure n_estimators is divisible by subforest_size=4
         if n_estimators % 4 != 0:
             n_estimators = int(np.ceil(n_estimators / 4.0) * 4)
@@ -265,6 +267,7 @@ def train_dml_model(
             min_samples_leaf=20,
         )
     elif estimator_type == "linear_dml":
+        from econml.dml import LinearDML
         est = LinearDML(
             model_y=model_y,
             model_t=model_t,

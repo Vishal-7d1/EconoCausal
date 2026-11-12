@@ -81,6 +81,22 @@ def create_deck(out_path=None):
             p.font.name = "Segoe UI"
             p.space_after = Pt(6)
 
+    REPO_ROOT = Path(__file__).resolve().parent.parent
+
+    def add_image_if_exists(slide, img_path, left, top, width, height=None):
+        p = Path(img_path)
+        if p.exists():
+            if height:
+                card = slide.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, left - Inches(0.04), top - Inches(0.04), width + Inches(0.08), height + Inches(0.08))
+                card.fill.solid()
+                card.fill.fore_color.rgb = BG_CARD
+                card.line.color.rgb = BORDER_COLOR
+                card.line.width = Pt(1)
+                return slide.shapes.add_picture(str(p), left, top, width=width, height=height)
+            else:
+                return slide.shapes.add_picture(str(p), left, top, width=width)
+        return None
+
     # -------------------------------------------------------------------------
     # Slide 1: Cover Slide
     # -------------------------------------------------------------------------
@@ -275,23 +291,22 @@ def create_deck(out_path=None):
     set_slide_bg(s7)
     add_header(s7, "Propensity Score Matching & Love Plot Balance Audit")
     
-    add_card(s7, Inches(0.8), Inches(1.8), Inches(5.6), Inches(5.0), "1:1 Caliper Matching Diagnostics", [
+    add_card(s7, Inches(0.8), Inches(1.8), Inches(5.2), Inches(5.0), "1:1 Caliper Matching Diagnostics", [
         "Matching Algorithm: 1:1 Nearest-Neighbor Caliper Matching on the propensity logit.",
         "Caliper: epsilon = 0.20 * SD(logit(e)).",
         "Match Rate for ₹10 Offer: 95.87% (2,273 matched pairs / 2,371 treated).",
         "Match Rate for ₹20 Offer: 97.07% (2,088 matched pairs / 2,151 treated).",
-        "Industry Gold Standard Rule: All post-matching covariates must satisfy |SMD| < 0.10."
-    ])
-    
-    add_card(s7, Inches(6.8), Inches(1.8), Inches(5.6), Inches(5.0), "Post-Matching Covariate Balance (|SMD| < 0.10)", [
-        "• loyalty_member: Raw SMD = +0.3842  -->  Matched SMD = +0.0184 (95.2% bias reduction)",
-        "• cart_baseline_value: Raw = +0.2845  -->  Matched = +0.0163 (94.3% bias reduction)",
-        "• past_purchases: Raw = +0.2984  -->  Matched = -0.0142 (95.2% bias reduction)",
-        "• days_since_last: Raw = -0.2140  -->  Matched = -0.0098 (95.4% bias reduction)",
-        "• monthly_income: Raw = +0.1982  -->  Matched = +0.0121 (93.9% bias reduction)",
-        "• web_visits: Raw = +0.1840  -->  Matched = -0.0075 (95.9% bias reduction)",
+        "Post-Matching Balance (|SMD| < 0.10):",
+        "• loyalty_member: Raw = +0.384  -->  Matched = +0.018 (95.2% bias reduction)",
+        "• cart_baseline: Raw = +0.285  -->  Matched = +0.016 (94.3% bias reduction)",
+        "• past_purchases: Raw = +0.298  -->  Matched = -0.014 (95.2% bias reduction)",
+        "• days_since_last: Raw = -0.214  -->  Matched = -0.010 (95.4% bias reduction)",
+        "• monthly_income: Raw = +0.198  -->  Matched = +0.012 (93.9% bias reduction)",
         "All 9 covariates successfully balanced within [-0.015, +0.019]."
     ], ACCENT_EMERALD)
+    
+    love_img = REPO_ROOT / "03_Backend_Optimization" / "outputs" / "04_love_plot_balance.png"
+    add_image_if_exists(s7, love_img, Inches(6.3), Inches(1.8), width=Inches(6.2), height=Inches(5.0))
 
     # -------------------------------------------------------------------------
     # Slide 8: Prescriptive Optimization Formulation
@@ -327,21 +342,25 @@ def create_deck(out_path=None):
     set_slide_bg(s9)
     add_header(s9, "Prescriptive Allocation Results vs. Industry Baselines")
     
-    add_card(s9, Inches(0.8), Inches(1.8), Inches(11.7), Inches(5.0), "Quantitative Benchmark Performance (₹50,000 Budget Cap)", [
+    add_card(s9, Inches(0.8), Inches(1.8), Inches(5.2), Inches(5.0), "Quantitative Benchmark Performance", [
         "1. DML MILP Optimal Policy (EconoCausal):",
-        "   - Budget Spent: ₹50,000.00 | Expected Redeemed Cost: ₹28,511.16",
+        "   - Budget Spent: ₹50,000.00 | Expected Redeemed: ₹28,511.16",
         "   - Targeted Customers: 4,568 (45.68%) | Control Arm: 5,432 (54.32%)",
-        "   - Incremental Purchases: +829.88 transactions | Incremental Profit: ₹3,76,115.07",
+        "   - Incremental Purchases: +829.88 transactions",
+        "   - Incremental Net Profit: ₹3,76,115.07",
         "   - Return on Spend (RODS): 7.52x",
         "",
-        "2. Random Allocation Baseline (5,000 customers randomly assigned ₹10):",
+        "2. Random Allocation Baseline (₹10 to 5,000 customers):",
         "   - Incremental Profit: ₹2,14,350.00 | RODS: 4.29x",
         "",
-        "3. High Cart-Value Baseline (5,000 highest cart shoppers assigned ₹10):",
+        "3. High Cart-Value Baseline (₹10 to top carts):",
         "   - Incremental Profit: ₹2,92,800.00 | RODS: 5.86x",
         "",
-        "Financial Advantage of Causal AI: Generates +₹1,61,765.07 in net incremental profit (+75.5% financial gain) compared to random promotional campaigns under the exact same ₹50,000 budget."
+        "Financial Advantage of Causal AI: Generates +₹1,61,765.07 in net profit (+75.5% financial gain) compared to random promotional campaigns under identical ₹50,000 budget."
     ], ACCENT_EMERALD)
+
+    policy_img = REPO_ROOT / "03_Backend_Optimization" / "outputs" / "02_policy_comparison.png"
+    add_image_if_exists(s9, policy_img, Inches(6.3), Inches(1.8), width=Inches(6.2), height=Inches(5.0))
 
     # -------------------------------------------------------------------------
     # Slide 10: Qini Curve & Cumulative Uplift Proof
@@ -350,19 +369,23 @@ def create_deck(out_path=None):
     set_slide_bg(s10)
     add_header(s10, "Visualizing Causal Targeting: The Qini Curve")
     
-    add_card(s10, Inches(0.8), Inches(1.8), Inches(5.6), Inches(5.0), "Qini Curve Methodology", [
-        "The Qini curve plots cumulative incremental purchases as an increasing fraction of the customer cohort is targeted.",
-        "Causal DML Ranking (Solid Green Line): Customers sorted descending by predicted CATE uplift (tau_hat_i).",
-        "Random Baseline (Grey Dashed Line): Expected incremental purchases under random customer selection.",
-        "The area between the Causal DML curve and the random diagonal is the Qini Metric (Efficiency Gain)."
-    ])
-    
-    add_card(s10, Inches(6.8), Inches(1.8), Inches(5.6), Inches(5.0), "Empirical Proof of Outperformance", [
-        "• At 20% Rollout: Causal DML achieves 222.8 incremental orders vs 166.0 random (+34.2% lift).",
-        "• At 50% Rollout: Causal DML achieves 488.6 incremental orders vs 383.1 random (+27.5% lift).",
-        "• Total Uplift Achieved: +829.88 orders concentrated on 4,568 customers.",
-        "Business Takeaway: The steep initial slope mathematically proves that CATE ranking captures the majority of responsive buyers within the first 50% of discount spend."
+    add_card(s10, Inches(0.8), Inches(1.8), Inches(4.8), Inches(5.0), "Qini Uplift Methodology & Proof", [
+        "1. Cumulative Gains Formulation:",
+        "   - Plots cumulative incremental purchases vs. percentage of customer cohort targeted.",
+        "   - Causal DML Ranking (Solid Green): Customers sorted descending by predicted CATE uplift (tau_hat_i).",
+        "   - Random Baseline (Grey Dashed): Expected orders under random customer coupon allocation.",
+        "",
+        "2. Empirical Outperformance:",
+        "   - At 20% Rollout: 222.8 orders vs 166.0 random (+34.2% lift).",
+        "   - At 50% Rollout: 488.6 orders vs 383.1 random (+27.5% lift).",
+        "   - Total Uplift: +829.88 orders concentrated on 4,568 truly price-sensitive buyers.",
+        "",
+        "3. Business Takeaway:",
+        "   - Proves CATE ranking captures responsive buyers within the first 50% of discount spend."
     ], ACCENT_EMERALD)
+    
+    qini_img = REPO_ROOT / "05_Final_Deliverables" / "screenshots" / "02_dashboard_qini_insights_screenshot.png"
+    add_image_if_exists(s10, qini_img, Inches(5.9), Inches(1.8), width=Inches(6.6), height=Inches(5.0))
 
     # -------------------------------------------------------------------------
     # Slide 11: Customer Behavior Data Drift Detector
@@ -420,27 +443,25 @@ def create_deck(out_path=None):
     # -------------------------------------------------------------------------
     s13 = prs.slides.add_slide(blank_layout)
     set_slide_bg(s13)
-    add_header(s13, "Executive Dashboard: React 19 + Plotly Experience")
+    add_header(s13, "Executive Dashboard: Live React 19 + Plotly Experience")
     
-    add_card(s13, Inches(0.8), Inches(1.8), Inches(3.6), Inches(5.0), "Overview & KPIs", [
-        "Top scorecards: Cohort Size, Budget, Spend, Incremental Orders, Net Profit, RODS.",
-        "Dynamic natural language executive summary.",
-        "Clear distinction between Nominal liability and Expected redeemed cost."
-    ])
-    
-    add_card(s13, Inches(4.8), Inches(1.8), Inches(3.6), Inches(5.0), "Interactive Visualizations", [
-        "Plotly Donut of offer distribution.",
-        "Policy benchmark comparison bars.",
-        "Demographic segment elasticity charts.",
-        "Interactive Qini & Cumulative Uplift curve."
-    ])
-    
-    add_card(s13, Inches(8.8), Inches(1.8), Inches(3.6), Inches(5.0), "Dark & Light Design System", [
-        "Full theme persistence via localStorage.",
-        "Theme-aware Plotly charts matching CSS custom properties.",
-        "Accessible contrast meeting WCAG standards.",
-        "Responsive sidebar navigation shell."
+    add_card(s13, Inches(0.8), Inches(1.8), Inches(4.4), Inches(5.0), "Interactive Web Experience", [
+        "1. Executive Overview & KPIs:",
+        "   - Real-time scorecards: ₹50k Budget, +829 Incremental Orders, ₹3,76,115 Net Profit, 7.52x ROAS.",
+        "   - Automated Natural Language Strategy Summary.",
+        "",
+        "2. Dynamic Visualizations:",
+        "   - Reactive Plotly charts matching Dark/Light design system.",
+        "   - Live Budget Simulator (< 50ms re-optimization via HiGHS).",
+        "   - 10,000-customer allocation matrix with search, filters & export.",
+        "",
+        "3. Production Architecture:",
+        "   - High-contrast accessible design meeting WCAG standards.",
+        "   - Live connection to FastAPI microservice on port 8000."
     ], ACCENT_EMERALD)
+
+    dash_img = REPO_ROOT / "05_Final_Deliverables" / "screenshots" / "01_dashboard_overview_screenshot.png"
+    add_image_if_exists(s13, dash_img, Inches(5.5), Inches(1.8), width=Inches(7.0), height=Inches(5.0))
 
     # -------------------------------------------------------------------------
     # Slide 14: Quality Assurance & Automated Tests
