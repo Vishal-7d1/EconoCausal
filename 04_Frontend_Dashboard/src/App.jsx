@@ -8,8 +8,6 @@ import {
   Sparkles,
   BarChart3,
   Calculator,
-  Store,
-  ChevronDown,
 } from 'lucide-react';
 
 import PlotlyChart from './components/PlotlyChart';
@@ -1568,33 +1566,6 @@ export default function App() {
             </button>
           ))}
         </nav>
-
-        <div
-          className="ec-sidebar-store-card"
-          title="Infotact Solutions — Data Associate L1 • Click to explore Dataset"
-          role="button"
-          tabIndex={0}
-          onClick={() => {
-            setActiveTab('dataset');
-            window.scrollTo({ top: 0, behavior: 'smooth' });
-            const mainArea = document.querySelector('.ec-main-area');
-            if (mainArea) mainArea.scrollTo({ top: 0, behavior: 'smooth' });
-          }}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' || e.key === ' ') {
-              setActiveTab('dataset');
-            }
-          }}
-        >
-          <div className="ec-store-icon-box">
-            <Store size={15} />
-          </div>
-          <div className="ec-store-info">
-            <div className="ec-store-name">Infotact Solutions</div>
-            <div className="ec-store-plan">DS &amp; ML Domain • L1 Intern</div>
-          </div>
-          <ChevronDown size={14} className="ec-store-chevron" />
-        </div>
       </aside>
 
       <main className="ec-main-area">
